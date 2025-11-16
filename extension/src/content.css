@@ -1,0 +1,84 @@
+/* X Enhancer Extension Styles */
+
+.x-enhancer-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 16px 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: white;
+}
+
+.x-enhancer-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.x-enhancer-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  color: white;
+}
+
+.x-enhancer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.x-enhancer-content {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.x-enhancer-loading {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 12px 0;
+}
+
+.x-enhancer-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.x-enhancer-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+
+.x-enhancer-tip {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 14px;
+  color: white;
+}
+
+.x-enhancer-error {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 12px 0;
+}

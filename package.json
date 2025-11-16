@@ -1,0 +1,27 @@
+{
+  "name": "x-enhancer",
+  "version": "1.0.0",
+  "description": "AI-powered SaaS platform for X (Twitter) growth and content optimization",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "extension"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspaces",
+    "build:extension": "npm run build --workspace=extension",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

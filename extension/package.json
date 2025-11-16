@@ -1,0 +1,17 @@
+{
+  "name": "x-enhancer-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension for X Enhancer",
+  "scripts": {
+    "build": "webpack --mode production",
+    "watch": "webpack --mode development --watch"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.254",
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.8.1",
+    "style-loader": "^3.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  }
+}
