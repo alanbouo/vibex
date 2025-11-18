@@ -116,7 +116,29 @@ const userSchema = new mongoose.Schema({
   verificationToken: String,
   resetPasswordToken: String,
   resetPasswordExpire: Date,
-  lastLogin: Date
+  lastLogin: Date,
+  likedTweets: [{
+    id: String,
+    content: String,
+    author: String,
+    category: String,
+    sentiment: String,
+    importedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  contentPreferences: {
+    topCategories: [String],
+    writingStyle: String,
+    preferredTopics: [String],
+    sentimentDistribution: {
+      positive: Number,
+      neutral: Number,
+      negative: Number
+    },
+    lastAnalyzed: Date
+  }
 }, {
   timestamps: true
 });
@@ -162,6 +184,21 @@ userSchema.virtual('twitterProfile').get(function() {
     username: this.twitterAccount.username,
     userId: this.twitterAccount.userId
   };
+});
+
+// Virtual for likes imported status
+userSchema.virtual('likesImported').get(function() {
+  return this.likedTweets && this.likedTweets.length > 0;
+});
+
+// Virtual for likes count
+userSchema.virtual('likesCount').get(function() {
+  return this.likedTweets ? this.likedTweets.length : 0;
+});
+
+// Virtual for Twitter connected status
+userSchema.virtual('twitterConnected').get(function() {
+  return this.twitterAccount && this.twitterAccount.connected;
 });
 
 userSchema.set('toJSON', { virtuals: true });

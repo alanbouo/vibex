@@ -37,12 +37,12 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'X Enhancer API',
+      title: 'Vibex API',
       version: '1.0.0',
       description: 'AI-powered platform for X (Twitter) growth',
       contact: {
         name: 'API Support',
-        email: 'support@xenhancer.com'
+        email: 'support@vibex.com'
       }
     },
     servers: [

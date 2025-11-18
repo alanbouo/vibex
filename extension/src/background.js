@@ -1,10 +1,10 @@
-// Background service worker for X Enhancer extension
+// Background service worker for Vibex extension
 
 const API_URL = 'http://localhost:5000/api';
 
 // Listen for extension installation
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('X Enhancer extension installed');
+  console.log('Vibex extension installed');
 });
 
 // Listen for messages from content script or popup

@@ -1,6 +1,6 @@
-// Content script for X Enhancer - Runs on Twitter/X pages
+// Content script for Vibex - Runs on Twitter/X pages
 
-console.log('X Enhancer extension loaded');
+console.log('Vibex extension loaded');
 
 // Configuration
 const CONFIG = {
@@ -62,7 +62,7 @@ function extractUsername() {
 // Add insights card to profile
 function addProfileInsightsCard(username) {
   const profileHeader = document.querySelector(CONFIG.selectors.profileHeader);
-  if (!profileHeader || document.getElementById('x-enhancer-insights')) return;
+  if (!profileHeader || document.getElementById('vibex-insights')) return;
 
   const insightsCard = createInsightsCard('profile', username);
   profileHeader.parentElement.insertBefore(insightsCard, profileHeader.nextSibling);
@@ -74,7 +74,7 @@ function addProfileInsightsCard(username) {
 // Add insights card to tweet
 function addTweetInsightsCard() {
   const tweetElement = document.querySelector(CONFIG.selectors.tweet);
-  if (!tweetElement || document.getElementById('x-enhancer-tweet-insights')) return;
+  if (!tweetElement || document.getElementById('vibex-tweet-insights')) return;
 
   const insightsCard = createInsightsCard('tweet');
   tweetElement.parentElement.insertBefore(insightsCard, tweetElement.nextSibling);
@@ -83,18 +83,18 @@ function addTweetInsightsCard() {
 // Create insights card UI
 function createInsightsCard(type, username = '') {
   const card = document.createElement('div');
-  card.id = type === 'profile' ? 'x-enhancer-insights' : 'x-enhancer-tweet-insights';
-  card.className = 'x-enhancer-card';
+  card.id = type === 'profile' ? 'vibex-insights' : 'vibex-tweet-insights';
+  card.className = 'vibex-card';
   
   card.innerHTML = `
-    <div class="x-enhancer-header">
-      <svg class="x-enhancer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+    <div class="vibex-header">
+      <svg class="vibex-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="x-enhancer-title">X Enhancer Insights</span>
+      <span class="vibex-title">Vibex Insights</span>
     </div>
-    <div class="x-enhancer-content" id="x-enhancer-content">
-      <div class="x-enhancer-loading">Loading insights...</div>
+    <div class="vibex-content" id="vibex-content">
+      <div class="vibex-loading">Loading insights...</div>
     </div>
   `;
 
@@ -117,27 +117,27 @@ function fetchProfileInsights(username) {
 
 // Display profile insights
 function displayProfileInsights(data) {
-  const content = document.getElementById('x-enhancer-content');
+  const content = document.getElementById('vibex-content');
   if (!content) return;
 
   const analytics = data.data?.analytics || {};
 
   content.innerHTML = `
-    <div class="x-enhancer-stats">
-      <div class="x-enhancer-stat">
+    <div class="vibex-stats">
+      <div class="vibex-stat">
         <span class="stat-label">Avg Engagement</span>
         <span class="stat-value">${analytics.avgEngagement || 0}</span>
       </div>
-      <div class="x-enhancer-stat">
+      <div class="vibex-stat">
         <span class="stat-label">Avg Likes</span>
         <span class="stat-value">${analytics.avgLikes || 0}</span>
       </div>
-      <div class="x-enhancer-stat">
+      <div class="vibex-stat">
         <span class="stat-label">Avg Retweets</span>
         <span class="stat-value">${analytics.avgRetweets || 0}</span>
       </div>
     </div>
-    <div class="x-enhancer-tip">
+    <div class="vibex-tip">
       💡 This profile shows ${analytics.avgEngagement > 100 ? 'strong' : 'moderate'} engagement
     </div>
   `;
@@ -145,11 +145,11 @@ function displayProfileInsights(data) {
 
 // Display error message
 function displayError(message) {
-  const content = document.getElementById('x-enhancer-content');
+  const content = document.getElementById('vibex-content');
   if (!content) return;
 
   content.innerHTML = `
-    <div class="x-enhancer-error">${message}</div>
+    <div class="vibex-error">${message}</div>
   `;
 }
 
@@ -163,7 +163,7 @@ function observePageChanges() {
       lastPath = currentPath;
       
       // Remove old insights
-      const oldInsights = document.getElementById('x-enhancer-insights');
+      const oldInsights = document.getElementById('vibex-insights');
       if (oldInsights) oldInsights.remove();
 
       // Re-initialize

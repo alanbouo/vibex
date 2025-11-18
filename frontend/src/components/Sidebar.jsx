@@ -23,7 +23,7 @@ const Sidebar = () => {
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-200">
         <Twitter className="w-8 h-8 text-blue-500" />
-        <span className="ml-2 text-xl font-bold text-gray-900">X Enhancer</span>
+        <span className="ml-2 text-xl font-bold text-gray-900">Vibex</span>
       </div>
 
       {/* Navigation */}

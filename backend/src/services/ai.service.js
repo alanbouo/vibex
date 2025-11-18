@@ -5,9 +5,17 @@ import logger from '../utils/logger.js';
 
 class AIService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    this.openai = null;
+  }
+
+  // Lazy initialization of OpenAI client
+  getOpenAI() {
+    if (!this.openai) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+    }
+    return this.openai;
   }
 
   /**
@@ -27,7 +35,7 @@ class AIService {
       const systemPrompt = this.buildSystemPrompt(tone, context);
       const userPrompt = this.buildTweetPrompt(prompt);
 
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAI().chat.completions.create({
         model: model,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -66,7 +74,7 @@ class AIService {
       
       const userPrompt = `Create ${count} variations of this tweet:\n\n"${tweet}"\n\nProvide only the variations, numbered 1-${count}.`;
 
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAI().chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -92,7 +100,7 @@ class AIService {
     try {
       const systemPrompt = `You are an expert at rewriting social media content. Rewrite the given tweet with a ${targetTone} tone while keeping the core message. Keep it under 280 characters.`;
       
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAI().chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -118,7 +126,7 @@ class AIService {
       
       const userPrompt = `Create a ${threadLength}-tweet thread about: ${topic}\n\nFormat: Number each tweet (1/${threadLength}, 2/${threadLength}, etc.)`;
 
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAI().chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -144,7 +152,7 @@ class AIService {
     try {
       const systemPrompt = 'You are a sentiment analysis expert. Analyze the sentiment of the given text and respond with ONLY a JSON object containing "score" (number from -1 to 1) and "label" (positive, neutral, or negative).';
       
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAI().chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -169,7 +177,7 @@ class AIService {
     try {
       const systemPrompt = `You are a creative content strategist. Generate ${count} viral tweet ideas for the ${niche} niche. Each idea should be one concise sentence.`;
       
-      const response = await this.openai.chat.completions.create({
+      const response = await this.getOpenAI().chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },

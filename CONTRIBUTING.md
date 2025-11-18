@@ -1,11 +1,11 @@
-# Contributing to X Enhancer
+# Contributing to Vibex
 
-Thank you for your interest in contributing to X Enhancer! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to Vibex! This document provides guidelines for contributing to the project.
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/yourusername/x-enhancer.git`
+2. Clone your fork: `git clone https://github.com/yourusername/vibex.git`
 3. Create a branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Test your changes

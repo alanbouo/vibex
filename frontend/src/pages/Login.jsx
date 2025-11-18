@@ -39,7 +39,7 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
             <Twitter className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">X Enhancer</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Vibex</h1>
           <p className="text-gray-600 mt-2">Accelerate your X growth with AI</p>
         </div>
 

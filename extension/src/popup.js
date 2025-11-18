@@ -1,4 +1,4 @@
-// Popup script for X Enhancer extension
+// Popup script for Vibex extension
 
 document.addEventListener('DOMContentLoaded', () => {
   loadUserData();

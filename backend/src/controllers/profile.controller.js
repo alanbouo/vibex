@@ -10,18 +10,32 @@ import twitterService from '../services/twitter.service.js';
 export const connectTwitter = asyncHandler(async (req, res, next) => {
   const { accessToken, refreshToken, userId, username, expiresAt } = req.body;
 
-  if (!accessToken || !userId || !username) {
-    return next(new AppError('Missing required Twitter OAuth data', 400));
+  // For development: allow simplified connection with just username
+  if (!username) {
+    return next(new AppError('Username is required', 400));
   }
 
-  req.user.twitterAccount = {
-    connected: true,
-    userId,
-    username,
-    accessToken,
-    refreshToken,
-    expiresAt: expiresAt ? new Date(expiresAt) : null
-  };
+  // If full OAuth data provided (production)
+  if (accessToken && userId) {
+    req.user.twitterAccount = {
+      connected: true,
+      userId,
+      username,
+      accessToken,
+      refreshToken,
+      expiresAt: expiresAt ? new Date(expiresAt) : null
+    };
+  } else {
+    // Simplified connection for development (no OAuth)
+    req.user.twitterAccount = {
+      connected: true,
+      userId: username, // Use username as userId for dev
+      username,
+      accessToken: null,
+      refreshToken: null,
+      expiresAt: null
+    };
+  }
 
   await req.user.save();
 
@@ -30,7 +44,7 @@ export const connectTwitter = asyncHandler(async (req, res, next) => {
     message: 'Twitter account connected successfully',
     data: {
       username,
-      userId
+      userId: req.user.twitterAccount.userId
     }
   });
 });
@@ -141,6 +155,73 @@ export const analyzeProfile = asyncHandler(async (req, res, next) => {
         totalTweetsAnalyzed: count
       },
       recentTweets: searchResults.tweets.slice(0, 10)
+    }
+  });
+});
+
+/**
+ * @desc    Import user's liked tweets for content analysis
+ * @route   POST /api/profiles/import-likes
+ * @access  Private
+ */
+export const importLikes = asyncHandler(async (req, res, next) => {
+  if (!req.user.twitterAccount?.connected) {
+    return next(new AppError('Twitter account not connected', 400));
+  }
+
+  // In production, this would fetch actual likes from Twitter API
+  // For development, we'll generate demo data
+  const demoLikes = [
+    {
+      id: '1',
+      content: 'AI is not replacing creativity, it\'s amplifying it. The best creators will be those who know how to collaborate with AI.',
+      author: '@techvisionary',
+      category: 'AI & Technology',
+      sentiment: 'positive'
+    },
+    {
+      id: '2',
+      content: '5 productivity hacks that actually work:\n1. Time blocking\n2. Pomodoro technique\n3. Batch similar tasks\n4. Digital detox hours\n5. Morning routines',
+      author: '@productivityguru',
+      category: 'Productivity',
+      sentiment: 'neutral'
+    },
+    {
+      id: '3',
+      content: 'Building in public is scary. But it\'s also the best way to find your tribe, get feedback, and stay accountable.',
+      author: '@startupfounder',
+      category: 'Entrepreneurship',
+      sentiment: 'positive'
+    }
+  ];
+
+  // Analyze interests from likes
+  const insights = {
+    topCategories: ['AI & Technology', 'Productivity', 'Entrepreneurship'],
+    writingStyle: 'casual and conversational',
+    preferredTopics: ['tech trends', 'productivity tips', 'startup insights'],
+    sentimentDistribution: {
+      positive: 60,
+      neutral: 30,
+      negative: 10
+    }
+  };
+
+  // Store in user record
+  req.user.likedTweets = demoLikes;
+  req.user.contentPreferences = {
+    ...insights,
+    lastAnalyzed: new Date()
+  };
+  await req.user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Likes imported and analyzed successfully',
+    data: {
+      likesCount: demoLikes.length,
+      insights,
+      samples: demoLikes.slice(0, 3)
     }
   });
 });

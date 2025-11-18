@@ -1,7 +1,7 @@
 {
-  "name": "x-enhancer-extension",
+  "name": "vibex-extension",
   "version": "1.0.0",
-  "description": "Chrome extension for X Enhancer",
+  "description": "Chrome extension for Vibex",
   "scripts": {
     "build": "webpack --mode production",
     "watch": "webpack --mode development --watch"

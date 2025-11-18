@@ -1,6 +1,6 @@
-/* X Enhancer Extension Styles */
+/* Vibex Extension Styles */
 
-.x-enhancer-card {
+.vibex-card {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
   padding: 20px;
@@ -9,46 +9,46 @@
   color: white;
 }
 
-.x-enhancer-header {
+.vibex-header {
   display: flex;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.x-enhancer-icon {
+.vibex-icon {
   width: 24px;
   height: 24px;
   margin-right: 8px;
   color: white;
 }
 
-.x-enhancer-title {
+.vibex-title {
   font-size: 16px;
   font-weight: 600;
   color: white;
 }
 
-.x-enhancer-content {
+.vibex-content {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 16px;
   backdrop-filter: blur(10px);
 }
 
-.x-enhancer-loading {
+.vibex-loading {
   text-align: center;
   color: rgba(255, 255, 255, 0.8);
   padding: 12px 0;
 }
 
-.x-enhancer-stats {
+.vibex-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 12px;
 }
 
-.x-enhancer-stat {
+.vibex-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -69,7 +69,7 @@
   color: white;
 }
 
-.x-enhancer-tip {
+.vibex-tip {
   padding: 12px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
@@ -77,7 +77,7 @@
   color: white;
 }
 
-.x-enhancer-error {
+.vibex-error {
   text-align: center;
   color: rgba(255, 255, 255, 0.8);
   padding: 12px 0;

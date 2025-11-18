@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying X Enhancer to production.
+This guide covers deploying Vibex to production.
 
 ## Deployment Options
 
@@ -19,7 +19,7 @@ npm install -g pm2
 
 # Start backend
 cd backend
-pm2 start src/server.js --name x-enhancer-api
+pm2 start src/server.js --name vibex-api
 
 # Save PM2 configuration
 pm2 save
@@ -54,10 +54,10 @@ docker-compose -f docker-compose.prod.yml scale backend=3
 
 ```bash
 # Build and push images
-docker build -t your-registry/x-enhancer-backend:latest ./backend
-docker build -t your-registry/x-enhancer-frontend:latest ./frontend
-docker push your-registry/x-enhancer-backend:latest
-docker push your-registry/x-enhancer-frontend:latest
+docker build -t your-registry/vibex-backend:latest ./backend
+docker build -t your-registry/vibex-frontend:latest ./frontend
+docker push your-registry/vibex-backend:latest
+docker push your-registry/vibex-frontend:latest
 
 # Apply Kubernetes configs
 kubectl apply -f k8s/
@@ -72,7 +72,7 @@ NODE_ENV=production
 PORT=5000
 
 # Database
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/x_enhancer
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/vibex
 REDIS_URL=redis://production-redis:6379
 
 # Security
@@ -87,7 +87,7 @@ TWITTER_BEARER_TOKEN=<your-token>
 AWS_ACCESS_KEY_ID=<your-key>
 AWS_SECRET_ACCESS_KEY=<your-secret>
 AWS_REGION=us-east-1
-AWS_S3_BUCKET=x-enhancer-media
+AWS_S3_BUCKET=vibex-media
 ```
 
 ## Chrome Extension Deployment
@@ -101,7 +101,7 @@ npm run build
 ### 2. Create ZIP
 ```bash
 cd dist
-zip -r x-enhancer-extension.zip .
+zip -r vibex-extension.zip .
 ```
 
 ### 3. Publish to Chrome Web Store
@@ -119,7 +119,7 @@ zip -r x-enhancer-extension.zip .
 sudo apt install certbot python3-certbot-nginx
 
 # Get certificate
-sudo certbot --nginx -d api.xenhancer.com
+sudo certbot --nginx -d api.vibex.com
 
 # Auto-renewal
 sudo certbot renew --dry-run
@@ -242,8 +242,8 @@ jobs:
 
 ```bash
 # PM2 rollback
-pm2 delete x-enhancer-api
-pm2 start src/server.js --name x-enhancer-api
+pm2 delete vibex-api
+pm2 start src/server.js --name vibex-api
 
 # Docker rollback
 docker-compose down
@@ -254,10 +254,10 @@ docker-compose up -d --force-recreate
 
 ```bash
 # Backend health
-curl https://api.xenhancer.com/health
+curl https://api.vibex.com/health
 
 # Frontend health
-curl https://xenhancer.com
+curl https://vibex.com
 
 # Extension check
 # Visit Chrome Web Store page

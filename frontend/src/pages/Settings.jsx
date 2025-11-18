@@ -3,10 +3,14 @@ import { useAuthStore } from '../store/authStore';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
+import { Twitter, CheckCircle, AlertCircle, Heart, Sparkles } from 'lucide-react';
+import { profileAPI } from '../services/api';
 
 const Settings = () => {
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('profile');
+  const { user, updateUser } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('twitter');
+  const [loading, setLoading] = useState(false);
+  const [twitterHandle, setTwitterHandle] = useState('');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -55,6 +59,227 @@ const Settings = () => {
               />
             </div>
             <Button>Save Changes</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'twitter' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>X (Twitter) Connection</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {user?.twitterConnected ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-900">Connected</p>
+                      <p className="text-sm text-green-700">@{user?.twitterAccount?.username}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={async () => {
+                      try {
+                        await profileAPI.disconnectTwitter();
+                        updateUser({ twitterConnected: false, twitterAccount: null });
+                        toast.success('X account disconnected');
+                      } catch (error) {
+                        toast.error('Failed to disconnect');
+                      }
+                    }}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-blue-900">Connect your X account</p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Enter your X (Twitter) handle to enable analytics, AI features, and scheduling.
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    X Handle
+                  </label>
+                  <div className="flex space-x-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">@</span>
+                      <input
+                        type="text"
+                        value={twitterHandle}
+                        onChange={(e) => setTwitterHandle(e.target.value.replace('@', ''))}
+                        placeholder="username"
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <Button 
+                      onClick={async () => {
+                        if (!twitterHandle.trim()) {
+                          toast.error('Please enter your X handle');
+                          return;
+                        }
+                        setLoading(true);
+                        try {
+                          const response = await profileAPI.connectTwitter({ username: twitterHandle });
+                          updateUser({ 
+                            twitterConnected: true, 
+                            twitterAccount: { username: twitterHandle } 
+                          });
+                          toast.success('X account connected successfully!');
+                          setTwitterHandle('');
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || 'Failed to connect X account');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      loading={loading}
+                      disabled={!twitterHandle.trim()}
+                    >
+                      <Twitter className="w-4 h-4 mr-2" />
+                      Connect
+                    </Button>
+                  </div>
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800 font-medium">⚠️ Development Mode</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      This is a simplified connection for testing. In production, you would authenticate via Twitter OAuth, 
+                      and the app would have real access to your account data, analytics, and posting capabilities.
+                      Currently, demo data will be shown to illustrate the production experience.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'preferences' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Content Preferences</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Likes Import */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Heart className="w-5 h-5 text-red-500" />
+                <h3 className="text-lg font-semibold text-gray-900">Import Your X Likes</h3>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Import your liked tweets so Vibex can analyze your interests and generate content that matches your style and preferences.
+              </p>
+
+              {user?.likesImported ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-green-900">Likes Imported</p>
+                        <p className="text-sm text-green-700">{user?.likesCount || 0} tweets analyzed</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          setLoading(true);
+                          await profileAPI.importLikes();
+                          toast.success('Likes refreshed successfully!');
+                        } catch (error) {
+                          toast.error('Failed to refresh likes');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      loading={loading}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Refresh
+                    </Button>
+                  </div>
+
+                  {/* AI Insights */}
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      <p className="text-sm font-medium text-blue-900">AI Insights from Your Likes</p>
+                    </div>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• Prefers tech and AI-related content</li>
+                      <li>• Engaged with productivity tips and tools</li>
+                      <li>• Interested in startup and entrepreneurship topics</li>
+                      <li>• Casual and conversational writing style</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-purple-900">Personalized Content Generation</p>
+                      <p className="text-sm text-purple-700 mt-1">
+                        By importing your likes, our AI will analyze your interests, preferred topics, and writing style to generate content that truly resonates with you.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={async () => {
+                      if (!user?.twitterConnected) {
+                        toast.error('Please connect your X account first');
+                        setActiveTab('twitter');
+                        return;
+                      }
+                      try {
+                        setLoading(true);
+                        await profileAPI.importLikes();
+                        updateUser({ likesImported: true, likesCount: 127 });
+                        toast.success('Likes imported successfully! AI is analyzing your preferences...');
+                      } catch (error) {
+                        toast.error(error.response?.data?.message || 'Failed to import likes');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    loading={loading}
+                    disabled={!user?.twitterConnected}
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    Import My Likes
+                  </Button>
+
+                  {!user?.twitterConnected && (
+                    <p className="text-xs text-amber-600">
+                      ⚠️ Connect your X account first to import likes
+                    </p>
+                  )}
+
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800 font-medium">⚠️ Development Mode</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      In production, this feature will use Twitter OAuth to securely access your liked tweets. 
+                      The AI will analyze content themes, writing styles, and topics you engage with to personalize content generation.
+                      Currently, demo data is used to illustrate the feature.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

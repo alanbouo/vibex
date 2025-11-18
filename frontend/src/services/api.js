@@ -104,6 +104,7 @@ export const profileAPI = {
   disconnectTwitter: () => api.post('/profiles/disconnect-twitter'),
   getTwitterInsights: () => api.get('/profiles/twitter-insights'),
   analyzeProfile: (data) => api.post('/profiles/analyze', data),
+  importLikes: () => api.post('/profiles/import-likes'),
 };
 
 export default api;

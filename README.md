@@ -1,4 +1,4 @@
-# X Enhancer - AI-Powered X (Twitter) Growth Platform
+# Vibex - AI-Powered X (Twitter) Growth Platform
 
 An MVP SaaS platform designed to help creators, influencers, and founders accelerate their growth on X (Twitter) through AI-driven content creation, automation, and analytics.
 
@@ -20,7 +20,7 @@ An MVP SaaS platform designed to help creators, influencers, and founders accele
 ## 🏗️ Architecture
 
 ```
-x-enhancer/
+vibex/
 ├── frontend/          # React.js web application
 ├── backend/           # Node.js/Express API server
 ├── extension/         # Chrome extension
@@ -48,7 +48,7 @@ x-enhancer/
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd x-enhancer
+cd vibex
 ```
 
 2. **Install dependencies**

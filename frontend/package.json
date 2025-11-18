@@ -1,7 +1,7 @@
 {
-  "name": "x-enhancer-frontend",
+  "name": "vibex-frontend",
   "version": "1.0.0",
-  "description": "Frontend for X Enhancer platform",
+  "description": "Frontend for Vibex platform",
   "private": true,
   "type": "module",
   "scripts": {
