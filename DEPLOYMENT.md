@@ -4,7 +4,156 @@ This guide covers deploying Vibex to production.
 
 ## Deployment Options
 
-### Option 1: AWS (Recommended)
+### Option 1: Coolify (Recommended for Self-Hosted)
+
+Coolify is an open-source, self-hostable platform that makes deploying applications as easy as Vercel/Heroku but on your own infrastructure.
+
+#### Prerequisites
+- A Coolify instance running (install at [coolify.io](https://coolify.io))
+- Domain name configured (optional but recommended)
+- Git repository (GitHub, GitLab, or Gitea)
+
+#### Step-by-Step Deployment
+
+##### 1. Prepare Your Coolify Instance
+1. Access your Coolify dashboard
+2. Ensure you have a server configured
+3. Have your domain/subdomain ready (e.g., `vibex.yourdomain.com` and `api.vibex.yourdomain.com`)
+
+##### 2. Create a New Project in Coolify
+1. Click **"+ New"** → **"Resource"**
+2. Select **"Docker Compose"**
+3. Choose your Git repository source
+4. Select the `vibex` repository
+
+##### 3. Configure Git Repository
+```bash
+Repository: https://github.com/yourusername/vibex
+Branch: main
+Build Pack: Docker Compose
+Docker Compose Location: /docker-compose.prod.yml
+```
+
+##### 4. Set Environment Variables
+In Coolify's Environment Variables section, add all variables from `.env.coolify`:
+
+**Critical Variables:**
+```env
+# Database (Generate secure passwords!)
+MONGO_PASSWORD=<generate-strong-password>
+MONGO_USERNAME=admin
+
+# JWT Secrets (Generate with: openssl rand -base64 32)
+JWT_SECRET=<generate-random-32-char-secret>
+REFRESH_TOKEN_SECRET=<generate-random-32-char-secret>
+
+# Your Coolify URLs
+BACKEND_URL=https://api.vibex.yourdomain.com
+FRONTEND_URL=https://vibex.yourdomain.com
+TWITTER_CALLBACK_URL=https://api.vibex.yourdomain.com/api/auth/twitter/callback
+
+# API Keys
+OPENAI_API_KEY=sk-...
+TWITTER_BEARER_TOKEN=...
+```
+
+> **Tip:** Use Coolify's built-in secrets management for sensitive values
+
+##### 5. Configure Domains
+1. **Backend Service:**
+   - Domain: `api.vibex.yourdomain.com`
+   - Port: `5000`
+   - Enable HTTPS (Coolify auto-generates Let's Encrypt certificates)
+
+2. **Frontend Service:**
+   - Domain: `vibex.yourdomain.com`
+   - Port: `80`
+   - Enable HTTPS
+
+##### 6. Configure DNS
+Point your domains to your Coolify server:
+```
+A Record: api.vibex.yourdomain.com → YOUR_SERVER_IP
+A Record: vibex.yourdomain.com → YOUR_SERVER_IP
+```
+
+##### 7. Deploy
+1. Click **"Deploy"** button
+2. Monitor build logs in real-time
+3. Wait for all services to be healthy (MongoDB, Redis, Backend, Frontend)
+
+##### 8. Verify Deployment
+```bash
+# Check backend health
+curl https://api.vibex.yourdomain.com/health
+
+# Check frontend
+curl https://vibex.yourdomain.com
+
+# View logs in Coolify dashboard
+```
+
+#### Coolify-Specific Features
+
+**Automatic Updates:**
+```bash
+# Enable auto-deploy on Git push
+Settings → General → Enable "Deploy on Push"
+```
+
+**Backups:**
+```bash
+# Coolify can automatically backup your MongoDB volumes
+Settings → Backups → Configure S3 or local backups
+```
+
+**Monitoring:**
+- Built-in container monitoring
+- Resource usage graphs
+- Email alerts for failures
+
+**Scaling:**
+```yaml
+# Edit docker-compose.prod.yml to scale backend
+services:
+  backend:
+    deploy:
+      replicas: 3  # Run 3 backend instances
+```
+
+#### Troubleshooting Coolify Deployment
+
+**Build Fails:**
+```bash
+# Check logs in Coolify dashboard
+# Common issues:
+# 1. Missing environment variables
+# 2. Insufficient server resources
+# 3. Port conflicts
+```
+
+**Database Connection Issues:**
+```bash
+# Ensure MongoDB is healthy
+# Check MongoDB logs in Coolify
+# Verify MONGODB_URI format
+```
+
+**Frontend Can't Connect to Backend:**
+```bash
+# Verify BACKEND_URL environment variable
+# Check CORS settings in backend
+# Ensure both services are on same Docker network
+```
+
+#### Cost Estimate
+- **Server (Hetzner CPX31):** €10-15/month
+- **Domain:** $10-15/year
+- **Total:** ~€10-15/month (much cheaper than cloud providers!)
+
+---
+
+### Option 2: AWS (Enterprise Production)
 
 #### Backend (AWS EC2 + RDS)
 ```bash

@@ -33,7 +33,7 @@ vibex/
 - **Backend**: Node.js, Express, MongoDB, Redis
 - **AI**: OpenAI API, Grok API, or Llama models
 - **Extension**: Chrome Extension Manifest V3
-- **Deployment**: AWS, Vercel, Docker
+- **Deployment**: Coolify, Docker, AWS, Vercel
 
 ## 📦 Installation
 
@@ -181,6 +181,19 @@ extension/
 
 ## 🚀 Deployment
 
+### Quick Deploy to Coolify (Recommended)
+Deploy to your own server in under 10 minutes!
+
+```bash
+# See full guide in COOLIFY_QUICKSTART.md
+1. Connect Git repo to Coolify
+2. Use docker-compose.prod.yml
+3. Add environment variables
+4. Click Deploy!
+```
+
+**Cost:** €10-15/month (vs $100+ for traditional cloud)
+
 ### Backend (AWS/Railway/Render)
 ```bash
 cd backend
@@ -195,10 +208,19 @@ npm run build
 # Deploy the 'dist' folder
 ```
 
+### Docker Compose (Full Stack)
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
+
 ### Extension (Chrome Web Store)
 1. Build the extension: `npm run build:extension`
 2. Zip the `extension/dist` folder
 3. Upload to Chrome Web Store Developer Dashboard
+
+**📚 Detailed deployment guides:**
+- [Coolify Quick Start](./COOLIFY_QUICKSTART.md) - Deploy in 10 minutes
+- [Full Deployment Guide](./DEPLOYMENT.md) - All deployment options
 
 ## 🔒 Security
 
