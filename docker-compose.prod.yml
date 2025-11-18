@@ -92,7 +92,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        REACT_APP_API_URL: ${BACKEND_URL}
+        VITE_API_URL: ${BACKEND_URL}
     restart: always
     expose:
       - "80"
