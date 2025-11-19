@@ -16,6 +16,7 @@ import logger from './utils/logger.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
+import twitterAuthRoutes from './routes/twitter-auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import tweetRoutes from './routes/tweet.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
@@ -108,6 +109,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', twitterAuthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tweets', tweetRoutes);
 app.use('/api/analytics', analyticsRoutes);
