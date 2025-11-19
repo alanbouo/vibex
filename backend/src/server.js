@@ -29,6 +29,9 @@ dotenv.config();
 // Initialize express app
 const app = express();
 
+// Trust proxy - required when behind a reverse proxy (Coolify, nginx, etc.)
+app.set('trust proxy', 1);
+
 // Connect to database
 connectDB();
 
