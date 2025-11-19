@@ -6,6 +6,9 @@ WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
+# Debug: Print the API URL during build
+RUN echo "Building frontend with VITE_API_URL: $VITE_API_URL"
+
 COPY package*.json ./
 RUN npm install
 
