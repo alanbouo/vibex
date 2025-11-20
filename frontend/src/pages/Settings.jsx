@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
@@ -11,6 +11,50 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState('twitter');
   const [loading, setLoading] = useState(false);
   const [twitterHandle, setTwitterHandle] = useState('');
+
+  // Handle Twitter OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const twitterConnected = urlParams.get('twitter_connected');
+    const twitterError = urlParams.get('twitter_error');
+    const accessToken = urlParams.get('twitter_access_token');
+    const refreshToken = urlParams.get('twitter_refresh_token');
+    const userId = urlParams.get('twitter_user_id');
+    const username = urlParams.get('twitter_username');
+    const expiresIn = urlParams.get('twitter_expires_in');
+
+    if (twitterConnected === 'true' && accessToken && username) {
+      // Calculate expiration date
+      const expiresAt = new Date(Date.now() + parseInt(expiresIn) * 1000).toISOString();
+
+      // Save Twitter connection
+      profileAPI.connectTwitter({
+        accessToken,
+        refreshToken,
+        userId,
+        username,
+        expiresAt
+      })
+        .then(() => {
+          updateUser({ 
+            twitterConnected: true, 
+            twitterAccount: { username, userId } 
+          });
+          toast.success(`X account @${username} connected successfully!`);
+        })
+        .catch((error) => {
+          toast.error('Failed to save Twitter connection');
+          console.error(error);
+        })
+        .finally(() => {
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    } else if (twitterError) {
+      toast.error(`Twitter connection failed: ${twitterError}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [updateUser]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -102,62 +146,50 @@ const Settings = () => {
                   <div className="flex-1">
                     <p className="font-medium text-blue-900">Connect your X account</p>
                     <p className="text-sm text-blue-700 mt-1">
-                      Enter your X (Twitter) handle to enable analytics, AI features, and scheduling.
+                      Authenticate with X (Twitter) OAuth to enable analytics, AI features, and posting capabilities.
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    X Handle
-                  </label>
-                  <div className="flex space-x-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">@</span>
-                      <input
-                        type="text"
-                        value={twitterHandle}
-                        onChange={(e) => setTwitterHandle(e.target.value.replace('@', ''))}
-                        placeholder="username"
-                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <Button 
-                      onClick={async () => {
-                        if (!twitterHandle.trim()) {
-                          toast.error('Please enter your X handle');
-                          return;
+                  <Button 
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        // Get OAuth URL from backend
+                        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/twitter`, {
+                          headers: {
+                            'Authorization': `Bearer ${useAuthStore.getState().token}`
+                          }
+                        });
+                        const data = await response.json();
+                        
+                        if (data.status === 'success') {
+                          // Store OAuth state for verification
+                          localStorage.setItem('twitter_oauth_state', data.data.state);
+                          localStorage.setItem('twitter_oauth_verifier', data.data.codeVerifier);
+                          
+                          // Redirect to Twitter OAuth
+                          window.location.href = data.data.authUrl;
+                        } else {
+                          toast.error('Failed to initiate Twitter authentication');
                         }
-                        setLoading(true);
-                        try {
-                          const response = await profileAPI.connectTwitter({ username: twitterHandle });
-                          updateUser({ 
-                            twitterConnected: true, 
-                            twitterAccount: { username: twitterHandle } 
-                          });
-                          toast.success('X account connected successfully!');
-                          setTwitterHandle('');
-                        } catch (error) {
-                          toast.error(error.response?.data?.message || 'Failed to connect X account');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      loading={loading}
-                      disabled={!twitterHandle.trim()}
-                    >
-                      <Twitter className="w-4 h-4 mr-2" />
-                      Connect
-                    </Button>
-                  </div>
-                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-800 font-medium">⚠️ Development Mode</p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      This is a simplified connection for testing. In production, you would authenticate via Twitter OAuth, 
-                      and the app would have real access to your account data, analytics, and posting capabilities.
-                      Currently, demo data will be shown to illustrate the production experience.
-                    </p>
-                  </div>
+                      } catch (error) {
+                        toast.error('Failed to connect X account');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    loading={loading}
+                    className="w-full"
+                  >
+                    <Twitter className="w-4 h-4 mr-2" />
+                    Connect with X (Twitter)
+                  </Button>
+                  
+                  <p className="text-xs text-gray-500 text-center mt-2">
+                    You'll be redirected to X to authorize Vibex. We only request permissions necessary for the features you use.
+                  </p>
                 </div>
               </div>
             )}
