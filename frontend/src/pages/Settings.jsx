@@ -165,11 +165,8 @@ const Settings = () => {
                         const data = await response.json();
                         
                         if (data.status === 'success') {
-                          // Store OAuth state for verification
-                          localStorage.setItem('twitter_oauth_state', data.data.state);
-                          localStorage.setItem('twitter_oauth_verifier', data.data.codeVerifier);
-                          
                           // Redirect to Twitter OAuth
+                          // Backend encodes codeVerifier in state parameter
                           window.location.href = data.data.authUrl;
                         } else {
                           toast.error('Failed to initiate Twitter authentication');
