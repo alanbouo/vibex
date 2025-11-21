@@ -35,9 +35,12 @@ router.get('/twitter', protect, asyncHandler(async (req, res, next) => {
       originalState: state,
     };
     const encodedState = Buffer.from(JSON.stringify(stateData)).toString('base64');
+    
+    // URL-encode the base64 string to handle special characters
+    const urlSafeState = encodeURIComponent(encodedState);
 
     // Replace state in URL with our encoded state
-    const modifiedUrl = url.replace(`state=${state}`, `state=${encodedState}`);
+    const modifiedUrl = url.replace(`state=${state}`, `state=${urlSafeState}`);
 
     res.status(200).json({
       status: 'success',
