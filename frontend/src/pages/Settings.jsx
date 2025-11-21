@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
 import { Twitter, CheckCircle, AlertCircle, Heart, Sparkles } from 'lucide-react';
-import { profileAPI } from '../services/api';
+import api, { profileAPI } from '../services/api';
 
 const Settings = () => {
   const { user, updateUser } = useAuthStore();
@@ -157,22 +157,17 @@ const Settings = () => {
                       setLoading(true);
                       try {
                         // Get OAuth URL from backend
-                        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/twitter`, {
-                          headers: {
-                            'Authorization': `Bearer ${useAuthStore.getState().token}`
-                          }
-                        });
-                        const data = await response.json();
+                        const response = await api.get('/auth/twitter');
                         
-                        if (data.status === 'success') {
+                        if (response.data.status === 'success') {
                           // Redirect to Twitter OAuth
                           // Backend encodes codeVerifier in state parameter
-                          window.location.href = data.data.authUrl;
+                          window.location.href = response.data.data.authUrl;
                         } else {
                           toast.error('Failed to initiate Twitter authentication');
                         }
                       } catch (error) {
-                        toast.error('Failed to connect X account');
+                        toast.error(error.response?.data?.message || 'Failed to connect X account');
                       } finally {
                         setLoading(false);
                       }
