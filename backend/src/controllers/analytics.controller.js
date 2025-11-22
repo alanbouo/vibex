@@ -127,11 +127,14 @@ export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
   const engagement = await twitterService.analyzeProfileEngagement(accessToken, userId);
 
   // Fetch published tweets and update their analytics
+  // Limit to most recent 10 tweets to avoid hitting rate limits
   const publishedTweets = await Tweet.find({
     user: req.user.id,
     status: 'published',
     twitterId: { $exists: true }
-  });
+  })
+  .sort({ publishedAt: -1 })
+  .limit(10);
 
   for (const tweet of publishedTweets) {
     try {
