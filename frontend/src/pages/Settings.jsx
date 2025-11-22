@@ -23,7 +23,10 @@ const Settings = () => {
     const username = urlParams.get('twitter_username');
     const expiresIn = urlParams.get('twitter_expires_in');
 
+    console.log('Twitter OAuth Params:', { twitterConnected, username, userId });
+
     if (twitterConnected === 'true' && accessToken && username) {
+      console.log('Processing Twitter connection...');
       // Calculate expiration date
       const expiresAt = new Date(Date.now() + parseInt(expiresIn) * 1000).toISOString();
 
@@ -36,15 +39,17 @@ const Settings = () => {
         expiresAt
       })
         .then(() => {
+          console.log('Twitter connection saved to backend');
           updateUser({ 
             twitterConnected: true, 
             twitterAccount: { username, userId } 
           });
+          console.log('User state updated');
           toast.success(`X account @${username} connected successfully!`);
         })
         .catch((error) => {
+          console.error('Failed to save connection:', error);
           toast.error('Failed to save Twitter connection');
-          console.error(error);
         })
         .finally(() => {
           // Clean up URL

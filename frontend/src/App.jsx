@@ -30,6 +30,7 @@ function App() {
         <Route path="/scheduler" element={<Scheduler />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/dashboard/settings" element={<Settings />} />
       </Route>
 
       {/* Default redirect */}

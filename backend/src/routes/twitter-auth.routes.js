@@ -107,7 +107,7 @@ router.get('/twitter/callback', asyncHandler(async (req, res, next) => {
 
     // Redirect back to frontend with tokens
     // Frontend will then call POST /api/profiles/connect-twitter
-    const redirectUrl = new URL(`${process.env.FRONTEND_URL}/dashboard/settings`);
+    const redirectUrl = new URL(`${process.env.FRONTEND_URL}/settings`);
     redirectUrl.searchParams.set('twitter_access_token', accessToken);
     redirectUrl.searchParams.set('twitter_refresh_token', refreshToken || '');
     redirectUrl.searchParams.set('twitter_user_id', userObject.id);
@@ -120,7 +120,7 @@ router.get('/twitter/callback', asyncHandler(async (req, res, next) => {
     logger.error('Twitter OAuth callback error:', error);
     
     // Redirect to frontend with error
-    const errorUrl = new URL(`${process.env.FRONTEND_URL}/dashboard/settings`);
+    const errorUrl = new URL(`${process.env.FRONTEND_URL}/settings`);
     errorUrl.searchParams.set('twitter_error', error.message || 'Authentication failed');
     res.redirect(errorUrl.toString());
   }
