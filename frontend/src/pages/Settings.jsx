@@ -3,8 +3,8 @@ import { useAuthStore } from '../store/authStore';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
-import { Twitter, CheckCircle, AlertCircle, Heart, Sparkles } from 'lucide-react';
-import api, { profileAPI } from '../services/api';
+import { Twitter, CheckCircle, AlertCircle, Heart, Sparkles, RefreshCw } from 'lucide-react';
+import api, { profileAPI, analyticsAPI } from '../services/api';
 
 const Settings = () => {
   const { user, updateUser } = useAuthStore();
@@ -142,6 +142,36 @@ const Settings = () => {
                   >
                     Disconnect
                   </Button>
+                </div>
+
+                {/* Sync Analytics Section */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-blue-900 mb-1">Sync Analytics</h3>
+                      <p className="text-sm text-blue-700">
+                        Fetch your latest X analytics, including followers, engagement, and tweet performance.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          await analyticsAPI.syncTwitterAnalytics();
+                          toast.success('Analytics synced successfully!');
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || 'Failed to sync analytics');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      loading={loading}
+                      className="ml-4"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Sync Now
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
