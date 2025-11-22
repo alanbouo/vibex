@@ -128,7 +128,7 @@ analyticsSchema.statics.getSummary = async function(userId, startDate, endDate) 
   return this.aggregate([
     {
       $match: {
-        user: mongoose.Types.ObjectId(userId),
+        user: new mongoose.Types.ObjectId(userId),
         date: { $gte: startDate, $lte: endDate }
       }
     },

@@ -32,10 +32,14 @@ const Dashboard = () => {
   const { user } = useAuthStore();
   const twitterConnected = user?.twitterConnected || false;
 
-  const { data: analyticsData } = useQuery({
+  const { data: analyticsData, isError: analyticsError } = useQuery({
     queryKey: ['analytics-summary'],
     queryFn: () => analyticsAPI.getSummary({ period: 'daily' }),
     enabled: twitterConnected,
+    retry: 1,
+    onError: (error) => {
+      console.error('Analytics fetch error:', error);
+    }
   });
 
   const { data: topTweets } = useQuery({
@@ -186,24 +190,32 @@ const Dashboard = () => {
     },
   ];
 
+  // Check if we have real analytics data
+  const hasAnalyticsData = analyticsData?.data?.analytics?.length > 0;
+  const showDemoMode = !hasAnalyticsData || analyticsError;
+
   return (
     <div className="space-y-6">
       {/* Demo Mode Banner */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-4 rounded-lg">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="ml-3 flex-1">
-            <h3 className="text-sm font-medium text-amber-800">Demo Mode Active</h3>
-            <p className="mt-1 text-sm text-amber-700">
-              You're viewing demo data to illustrate the production experience. In production, this dashboard will display real analytics from your connected X account via OAuth authentication.
-            </p>
+      {showDemoMode && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-4 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-sm font-medium text-amber-800">Demo Mode Active</h3>
+              <p className="mt-1 text-sm text-amber-700">
+                {twitterConnected 
+                  ? "You're viewing demo data because your analytics haven't been synced yet. Go to Settings to sync your X analytics data."
+                  : "You're viewing demo data to illustrate the production experience. Connect your X account to see real analytics."}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Header */}
       <div>
