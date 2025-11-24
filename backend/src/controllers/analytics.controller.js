@@ -165,6 +165,46 @@ export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
     }
   }
 
+  // Calculate total impressions from published tweets
+  const totalImpressions = publishedTweets.reduce((sum, tweet) => 
+    sum + (tweet.analytics?.impressions || 0), 0
+  );
+
+  // Create or update Analytics document for today
+  const today = dayjs().startOf('day').toDate();
+  await Analytics.findOneAndUpdate(
+    {
+      user: req.user.id,
+      date: today,
+      period: 'daily'
+    },
+    {
+      metrics: {
+        followers: {
+          count: profile.public_metrics.followers_count,
+          change: 0 // TODO: Calculate from previous day
+        },
+        following: {
+          count: profile.public_metrics.following_count,
+          change: 0
+        },
+        engagement: {
+          rate: parseFloat(engagement.avgEngagementRate) || 0,
+          total: engagement.totalTweets,
+          likes: engagement.avgLikes,
+          retweets: engagement.avgRetweets,
+          replies: engagement.avgReplies
+        },
+        tweets: {
+          count: profile.public_metrics.tweet_count,
+          impressions: totalImpressions,
+          published: publishedTweets.length
+        }
+      }
+    },
+    { upsert: true, new: true }
+  );
+
   // Increment usage
   await req.user.incrementUsage('analyticsChecked');
 
