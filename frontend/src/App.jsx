@@ -9,6 +9,7 @@ import AIWriter from './pages/AIWriter';
 import Scheduler from './pages/Scheduler';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import ReplyHelper from './pages/ReplyHelper';
 
 // Components
 import Layout from './components/Layout';
@@ -27,6 +28,7 @@ function App() {
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/ai-writer" element={<AIWriter />} />
+        <Route path="/reply-helper" element={<ReplyHelper />} />
         <Route path="/scheduler" element={<Scheduler />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/settings" element={<Settings />} />

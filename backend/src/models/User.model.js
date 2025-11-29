@@ -117,6 +117,53 @@ const userSchema = new mongoose.Schema({
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   lastLogin: Date,
+  // Imported tweets for style analysis
+  importedTweets: [{
+    id: String,
+    content: String,
+    author: String,
+    authorName: String,
+    metrics: {
+      like_count: Number,
+      retweet_count: Number,
+      reply_count: Number
+    },
+    createdAt: Date,
+    importedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // Imported likes for interest analysis
+  importedLikes: [{
+    id: String,
+    content: String,
+    author: String,
+    authorName: String,
+    metrics: {
+      like_count: Number,
+      retweet_count: Number,
+      reply_count: Number
+    },
+    createdAt: Date,
+    importedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // AI-analyzed style profile
+  styleProfile: {
+    tone: String,           // e.g., "casual", "professional", "witty"
+    topics: [String],       // e.g., ["tech", "AI", "startups"]
+    vocabulary: [String],   // common words/phrases used
+    avgLength: Number,      // average tweet length
+    emojiUsage: String,     // "none", "light", "heavy"
+    hashtagStyle: String,   // "none", "minimal", "frequent"
+    analyzedAt: Date,
+    tweetCount: Number,
+    likesCount: Number
+  },
+  // Legacy fields (keep for backward compatibility)
   likedTweets: [{
     id: String,
     content: String,

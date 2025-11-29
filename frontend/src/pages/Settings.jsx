@@ -144,32 +144,26 @@ const Settings = () => {
                   </Button>
                 </div>
 
-                {/* Sync Analytics Section */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                {/* Sync Analytics Section - Disabled to save API quota */}
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg opacity-60">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="text-sm font-medium text-blue-900 mb-1">Sync Analytics</h3>
-                      <p className="text-sm text-blue-700">
-                        Fetch your latest X analytics, including followers, engagement, and tweet performance.
+                      <h3 className="text-sm font-medium text-gray-700 mb-1">Sync Analytics</h3>
+                      <p className="text-sm text-gray-500">
+                        Analytics sync is disabled to conserve API quota. 
+                        Use the <strong>Reply Helper</strong> to grow your audience instead!
+                      </p>
+                      <p className="text-xs text-amber-600 mt-2">
+                        ⚠️ Free tier: 100 reads/month. Focus on creating content, not checking stats.
                       </p>
                     </div>
                     <Button 
-                      onClick={async () => {
-                        setLoading(true);
-                        try {
-                          await analyticsAPI.syncTwitterAnalytics();
-                          toast.success('Analytics synced successfully!');
-                        } catch (error) {
-                          toast.error(error.response?.data?.message || 'Failed to sync analytics');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      loading={loading}
-                      className="ml-4"
+                      disabled
+                      variant="outline"
+                      className="ml-4 cursor-not-allowed"
                     >
                       <RefreshCw className="w-4 h-4 mr-2" />
-                      Sync Now
+                      Disabled
                     </Button>
                   </div>
                 </div>

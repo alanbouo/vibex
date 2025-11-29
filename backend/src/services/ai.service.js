@@ -326,6 +326,197 @@ class AIService {
       emojiCount: (tweet.match(/[\p{Emoji}]/gu) || []).length
     };
   }
+
+  /**
+   * Analyze user's writing style from their tweets and likes
+   */
+  async analyzeStyle(tweets, likes) {
+    try {
+      const tweetTexts = tweets.map(t => t.content).join('\n---\n');
+      const likeTexts = likes.slice(0, 20).map(l => l.content).join('\n---\n');
+
+      const systemPrompt = `You are an expert at analyzing writing styles and content preferences. Analyze the user's tweets and liked content to create a style profile. Respond with ONLY a valid JSON object.`;
+
+      const userPrompt = `Analyze this user's writing style and interests.
+
+USER'S TWEETS:
+${tweetTexts || 'No tweets provided'}
+
+CONTENT THEY LIKE:
+${likeTexts || 'No likes provided'}
+
+Respond with this exact JSON structure:
+{
+  "tone": "one of: casual, professional, witty, inspirational, educational",
+  "topics": ["array of 3-5 main topics they discuss/like"],
+  "vocabulary": ["5-10 characteristic words or phrases they use"],
+  "avgLength": estimated average tweet length as number,
+  "emojiUsage": "one of: none, light, moderate, heavy",
+  "hashtagStyle": "one of: none, minimal, moderate, frequent",
+  "writingPatterns": "brief description of their writing patterns",
+  "contentThemes": "brief description of themes in content they like"
+}`;
+
+      const response = await this.getOpenAI().chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+      });
+
+      const result = JSON.parse(response.choices[0].message.content);
+      return {
+        ...result,
+        analyzedAt: new Date(),
+        tweetCount: tweets.length,
+        likesCount: likes.length
+      };
+    } catch (error) {
+      logger.error('Style Analysis Error:', error);
+      // Return default profile on error
+      return {
+        tone: 'casual',
+        topics: ['general'],
+        vocabulary: [],
+        avgLength: 150,
+        emojiUsage: 'light',
+        hashtagStyle: 'minimal',
+        writingPatterns: 'Unable to analyze',
+        contentThemes: 'Unable to analyze',
+        analyzedAt: new Date(),
+        tweetCount: tweets.length,
+        likesCount: likes.length
+      };
+    }
+  }
+
+  /**
+   * Generate tweet in user's style
+   */
+  async generateInStyle(prompt, styleProfile, options = {}) {
+    try {
+      const { type = 'tweet' } = options;
+
+      const styleContext = `
+Writing Style Profile:
+- Tone: ${styleProfile.tone}
+- Topics of interest: ${styleProfile.topics?.join(', ')}
+- Characteristic vocabulary: ${styleProfile.vocabulary?.join(', ')}
+- Average length: ~${styleProfile.avgLength} characters
+- Emoji usage: ${styleProfile.emojiUsage}
+- Hashtag style: ${styleProfile.hashtagStyle}
+${styleProfile.writingPatterns ? `- Writing patterns: ${styleProfile.writingPatterns}` : ''}
+`;
+
+      const systemPrompt = `You are ghostwriting for a Twitter user. Match their exact writing style based on this profile:
+${styleContext}
+
+Write content that sounds authentically like them - use their vocabulary, match their tone, and follow their patterns. Keep tweets under 280 characters.`;
+
+      const response = await this.getOpenAI().chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 150,
+      });
+
+      return this.formatTweet(response.choices[0].message.content);
+    } catch (error) {
+      logger.error('Generate In Style Error:', error);
+      throw new AppError('Failed to generate content in your style', 500);
+    }
+  }
+
+  /**
+   * Generate reply suggestions for a tweet
+   */
+  async generateReplies(tweetContent, styleProfile, count = 3) {
+    try {
+      const styleContext = styleProfile ? `
+Match this writing style:
+- Tone: ${styleProfile.tone}
+- Vocabulary: ${styleProfile.vocabulary?.slice(0, 5).join(', ')}
+- Emoji usage: ${styleProfile.emojiUsage}
+` : '';
+
+      const systemPrompt = `You are helping a user craft engaging replies on Twitter. Generate ${count} different reply options that are authentic and likely to get engagement.
+${styleContext}
+Each reply should be under 280 characters. Make them conversational and add value to the discussion.`;
+
+      const userPrompt = `Generate ${count} reply options for this tweet:
+
+"${tweetContent}"
+
+Provide replies that:
+1. Add value or insight
+2. Are engaging and likely to start conversation
+3. Sound natural, not generic`;
+
+      const response = await this.getOpenAI().chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 400,
+      });
+
+      const replies = this.parseVariations(response.choices[0].message.content);
+      return replies.slice(0, count);
+    } catch (error) {
+      logger.error('Generate Replies Error:', error);
+      throw new AppError('Failed to generate replies', 500);
+    }
+  }
+
+  /**
+   * Generate quote tweet suggestions
+   */
+  async generateQuotes(tweetContent, styleProfile, count = 3) {
+    try {
+      const styleContext = styleProfile ? `
+Match this writing style:
+- Tone: ${styleProfile.tone}
+- Topics: ${styleProfile.topics?.slice(0, 3).join(', ')}
+` : '';
+
+      const systemPrompt = `You are helping a user create engaging quote tweets. Generate ${count} different quote tweet options that add unique perspective or value.
+${styleContext}
+Each should be under 200 characters (leaving room for the quoted tweet). Make them insightful and shareable.`;
+
+      const userPrompt = `Generate ${count} quote tweet options for this tweet:
+
+"${tweetContent}"
+
+Provide quotes that:
+1. Add your unique take or insight
+2. Could go viral or get high engagement
+3. Position you as a thought leader`;
+
+      const response = await this.getOpenAI().chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 400,
+      });
+
+      const quotes = this.parseVariations(response.choices[0].message.content);
+      return quotes.slice(0, count);
+    } catch (error) {
+      logger.error('Generate Quotes Error:', error);
+      throw new AppError('Failed to generate quote tweets', 500);
+    }
+  }
 }
 
 export default new AIService();

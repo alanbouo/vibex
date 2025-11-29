@@ -122,12 +122,23 @@ export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
   const accessToken = req.user.twitterAccount.accessToken;
   const userId = req.user.twitterAccount.userId;
 
-  // Fetch profile analytics
+  // Fetch profile analytics (1 API call)
   const profile = await twitterService.getUserProfile(accessToken, userId);
-  const engagement = await twitterService.analyzeProfileEngagement(accessToken, userId);
+  
+  // Skip detailed engagement analysis to save API quota
+  // analyzeProfileEngagement makes another API call for tweets
+  // On Free tier (100 reads/month), we need to be conservative
+  const engagement = {
+    avgLikes: 0,
+    avgRetweets: 0,
+    avgReplies: 0,
+    avgEngagementRate: 0,
+    totalTweets: profile.public_metrics?.tweet_count || 0
+  };
 
-  // Fetch published tweets and update their analytics
-  // Limit to most recent 10 tweets to avoid hitting rate limits
+  // Skip individual tweet analytics to conserve API quota
+  // On Free tier, each getTweetAnalytics call burns 1 read
+  // With 100 reads/month, we can't afford to fetch analytics for each tweet
   const publishedTweets = await Tweet.find({
     user: req.user.id,
     status: 'published',
@@ -136,34 +147,8 @@ export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
   .sort({ publishedAt: -1 })
   .limit(10);
 
-  for (const tweet of publishedTweets) {
-    try {
-      const twitterAnalytics = await twitterService.getTweetAnalytics(
-        accessToken,
-        tweet.twitterId
-      );
-
-      if (twitterAnalytics && twitterAnalytics.public_metrics) {
-        tweet.analytics = {
-          ...tweet.analytics,
-          impressions: twitterAnalytics.public_metrics.impression_count || 0,
-          likes: twitterAnalytics.public_metrics.like_count || 0,
-          retweets: twitterAnalytics.public_metrics.retweet_count || 0,
-          replies: twitterAnalytics.public_metrics.reply_count || 0,
-          engagements: (twitterAnalytics.public_metrics.like_count || 0) +
-                      (twitterAnalytics.public_metrics.retweet_count || 0) +
-                      (twitterAnalytics.public_metrics.reply_count || 0),
-          lastUpdated: new Date()
-        };
-
-        tweet.calculateEngagementRate();
-        await tweet.save();
-      }
-    } catch (error) {
-      // Skip if analytics unavailable for this tweet
-      continue;
-    }
-  }
+  // Note: Individual tweet analytics disabled to save API quota
+  // TODO: Re-enable when user upgrades to Basic tier ($100/mo)
 
   // Calculate total impressions from published tweets
   const totalImpressions = publishedTweets.reduce((sum, tweet) => 

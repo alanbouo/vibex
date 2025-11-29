@@ -105,6 +105,13 @@ export const profileAPI = {
   getTwitterInsights: () => api.get('/profiles/twitter-insights'),
   analyzeProfile: (data) => api.post('/profiles/analyze', data),
   importLikes: () => api.post('/profiles/import-likes'),
+  
+  // Style import & generation (new)
+  importStyle: () => api.post('/profiles/import-style'),
+  getStyleProfile: () => api.get('/profiles/style'),
+  generateReplies: (data) => api.post('/profiles/generate-replies', data),
+  generateQuotes: (data) => api.post('/profiles/generate-quotes', data),
+  generateStyledTweet: (data) => api.post('/profiles/generate-styled-tweet', data),
 };
 
 export default api;

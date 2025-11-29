@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Sparkles, 
+  MessageCircle,
   Calendar, 
   BarChart3, 
   Settings,
@@ -12,6 +13,7 @@ import { cn } from '../lib/utils';
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/ai-writer', icon: Sparkles, label: 'AI Writer' },
+  { to: '/reply-helper', icon: MessageCircle, label: 'Reply Helper' },
   { to: '/scheduler', icon: Calendar, label: 'Scheduler' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/settings', icon: Settings, label: 'Settings' },

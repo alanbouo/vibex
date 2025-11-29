@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import twitterService from '../services/twitter.service.js';
+import aiService from '../services/ai.service.js';
 
 /**
  * @desc    Connect Twitter account (OAuth callback handled here)
@@ -85,11 +86,21 @@ export const getTwitterInsights = asyncHandler(async (req, res, next) => {
   const accessToken = req.user.twitterAccount.accessToken;
   const userId = req.user.twitterAccount.userId;
 
-  const [profile, engagement, optimalTimes] = await Promise.all([
-    twitterService.getUserProfile(accessToken, userId),
-    twitterService.analyzeProfileEngagement(accessToken, userId),
-    twitterService.getOptimalPostingTimes(accessToken, userId)
-  ]);
+  // Only fetch profile (1 API call) to conserve quota
+  // Free tier: 100 reads/month - we need to be very conservative
+  const profile = await twitterService.getUserProfile(accessToken, userId);
+  
+  // Use static data for engagement and optimal times to save API calls
+  const engagement = {
+    avgLikes: 0,
+    avgRetweets: 0,
+    avgReplies: 0,
+    avgEngagementRate: 0,
+    totalTweets: profile.public_metrics?.tweet_count || 0
+  };
+  
+  // Static optimal times (no API call needed)
+  const optimalTimes = await twitterService.getOptimalPostingTimes(accessToken, userId);
 
   res.status(200).json({
     status: 'success',
@@ -113,115 +124,230 @@ export const analyzeProfile = asyncHandler(async (req, res, next) => {
     return next(new AppError('Username is required', 400));
   }
 
-  // Use app-only authentication for public data
-  const searchResults = await twitterService.searchTweets(
-    `from:${username}`,
-    { maxResults: 100 }
-  );
+  // DISABLED: Search API consumes quota quickly
+  // Free tier only has 100 reads/month
+  // Re-enable when upgraded to Basic tier ($100/mo)
+  return next(new AppError(
+    'Profile analysis is temporarily disabled to conserve API quota. This feature requires a paid Twitter API tier.',
+    503
+  ));
 
-  if (!searchResults.tweets || searchResults.tweets.length === 0) {
-    return next(new AppError('Profile not found or no tweets available', 404));
+  // Original implementation (disabled):
+  // const searchResults = await twitterService.searchTweets(
+  //   `from:${username}`,
+  //   { maxResults: 100 }
+  // );
+  // ...
+});
+
+/**
+ * @desc    Import user's style (tweets + likes) - ONE TIME OPERATION
+ * @route   POST /api/profiles/import-style
+ * @access  Private
+ * @note    Uses 2 Twitter API reads - use sparingly!
+ */
+export const importStyle = asyncHandler(async (req, res, next) => {
+  if (!req.user.twitterAccount?.connected) {
+    return next(new AppError('Twitter account not connected', 400));
   }
 
-  // Calculate engagement metrics
-  let totalLikes = 0;
-  let totalRetweets = 0;
-  let totalReplies = 0;
+  const accessToken = req.user.twitterAccount.accessToken;
+  const userId = req.user.twitterAccount.userId;
 
-  searchResults.tweets.forEach(tweet => {
-    const metrics = tweet.public_metrics;
-    totalLikes += metrics.like_count || 0;
-    totalRetweets += metrics.retweet_count || 0;
-    totalReplies += metrics.reply_count || 0;
-  });
+  if (!accessToken) {
+    return next(new AppError('Twitter access token not available. Please reconnect your account.', 400));
+  }
 
-  const count = searchResults.tweets.length;
-  const avgEngagement = (totalLikes + totalRetweets + totalReplies) / count;
+  // Check if already imported recently (within 7 days)
+  const lastImport = req.user.styleProfile?.analyzedAt;
+  if (lastImport) {
+    const daysSinceImport = (Date.now() - new Date(lastImport).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceImport < 7) {
+      return res.status(200).json({
+        status: 'success',
+        message: 'Style already imported recently. Re-import available in ' + Math.ceil(7 - daysSinceImport) + ' days.',
+        data: {
+          styleProfile: req.user.styleProfile,
+          alreadyImported: true
+        }
+      });
+    }
+  }
 
-  // Find user data
-  const userData = searchResults.users?.find(u => 
-    u.username.toLowerCase() === username.toLowerCase()
+  // Fetch tweets and likes from Twitter (2 API calls)
+  let tweets = [];
+  let likes = [];
+
+  try {
+    tweets = await twitterService.getUserTweets(accessToken, userId, { maxResults: 50 });
+  } catch (error) {
+    // Continue even if tweets fail
+    console.error('Failed to fetch tweets:', error.message);
+  }
+
+  try {
+    likes = await twitterService.getUserLikes(accessToken, userId, { maxResults: 50 });
+  } catch (error) {
+    // Continue even if likes fail
+    console.error('Failed to fetch likes:', error.message);
+  }
+
+  if (tweets.length === 0 && likes.length === 0) {
+    return next(new AppError('Could not fetch any tweets or likes. Please try again later.', 400));
+  }
+
+  // Format tweets for storage
+  const formattedTweets = tweets.map(t => ({
+    id: t.id,
+    content: t.text,
+    author: `@${req.user.twitterAccount.username}`,
+    authorName: req.user.name,
+    metrics: t.public_metrics,
+    createdAt: t.created_at,
+    importedAt: new Date()
+  }));
+
+  // Analyze style using AI
+  const styleProfile = await aiService.analyzeStyle(
+    formattedTweets.map(t => ({ content: t.content })),
+    likes.map(l => ({ content: l.content }))
   );
+
+  // Store in user record
+  req.user.importedTweets = formattedTweets;
+  req.user.importedLikes = likes.map(l => ({
+    ...l,
+    importedAt: new Date()
+  }));
+  req.user.styleProfile = styleProfile;
+  await req.user.save();
 
   res.status(200).json({
     status: 'success',
+    message: 'Style imported and analyzed successfully!',
     data: {
-      profile: userData,
-      analytics: {
-        avgLikes: Math.round(totalLikes / count),
-        avgRetweets: Math.round(totalRetweets / count),
-        avgReplies: Math.round(totalReplies / count),
-        avgEngagement: Math.round(avgEngagement),
-        totalTweetsAnalyzed: count
-      },
-      recentTweets: searchResults.tweets.slice(0, 10)
+      tweetsImported: formattedTweets.length,
+      likesImported: likes.length,
+      styleProfile,
+      apiCallsUsed: 2
     }
   });
 });
 
 /**
- * @desc    Import user's liked tweets for content analysis
+ * @desc    Get user's style profile
+ * @route   GET /api/profiles/style
+ * @access  Private
+ */
+export const getStyleProfile = asyncHandler(async (req, res, next) => {
+  if (!req.user.styleProfile?.analyzedAt) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        hasStyle: false,
+        message: 'No style profile yet. Import your style first.'
+      }
+    });
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      hasStyle: true,
+      styleProfile: req.user.styleProfile,
+      tweetsCount: req.user.importedTweets?.length || 0,
+      likesCount: req.user.importedLikes?.length || 0
+    }
+  });
+});
+
+/**
+ * @desc    Generate reply suggestions for a tweet
+ * @route   POST /api/profiles/generate-replies
+ * @access  Private
+ * @note    No Twitter API calls - uses stored style profile
+ */
+export const generateReplies = asyncHandler(async (req, res, next) => {
+  const { tweetContent, count = 3 } = req.body;
+
+  if (!tweetContent) {
+    return next(new AppError('Tweet content is required', 400));
+  }
+
+  const styleProfile = req.user.styleProfile || null;
+  const replies = await aiService.generateReplies(tweetContent, styleProfile, count);
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      replies,
+      usedStyle: !!styleProfile
+    }
+  });
+});
+
+/**
+ * @desc    Generate quote tweet suggestions
+ * @route   POST /api/profiles/generate-quotes
+ * @access  Private
+ * @note    No Twitter API calls - uses stored style profile
+ */
+export const generateQuotes = asyncHandler(async (req, res, next) => {
+  const { tweetContent, count = 3 } = req.body;
+
+  if (!tweetContent) {
+    return next(new AppError('Tweet content is required', 400));
+  }
+
+  const styleProfile = req.user.styleProfile || null;
+  const quotes = await aiService.generateQuotes(tweetContent, styleProfile, count);
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      quotes,
+      usedStyle: !!styleProfile
+    }
+  });
+});
+
+/**
+ * @desc    Generate tweet in user's style
+ * @route   POST /api/profiles/generate-styled-tweet
+ * @access  Private
+ * @note    No Twitter API calls - uses stored style profile
+ */
+export const generateStyledTweet = asyncHandler(async (req, res, next) => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    return next(new AppError('Prompt is required', 400));
+  }
+
+  if (!req.user.styleProfile?.analyzedAt) {
+    return next(new AppError('Please import your style first', 400));
+  }
+
+  const tweet = await aiService.generateInStyle(prompt, req.user.styleProfile);
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      tweet,
+      styleProfile: {
+        tone: req.user.styleProfile.tone,
+        topics: req.user.styleProfile.topics
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Import user's liked tweets for content analysis (legacy)
  * @route   POST /api/profiles/import-likes
  * @access  Private
  */
 export const importLikes = asyncHandler(async (req, res, next) => {
-  if (!req.user.twitterAccount?.connected) {
-    return next(new AppError('Twitter account not connected', 400));
-  }
-
-  // In production, this would fetch actual likes from Twitter API
-  // For development, we'll generate demo data
-  const demoLikes = [
-    {
-      id: '1',
-      content: 'AI is not replacing creativity, it\'s amplifying it. The best creators will be those who know how to collaborate with AI.',
-      author: '@techvisionary',
-      category: 'AI & Technology',
-      sentiment: 'positive'
-    },
-    {
-      id: '2',
-      content: '5 productivity hacks that actually work:\n1. Time blocking\n2. Pomodoro technique\n3. Batch similar tasks\n4. Digital detox hours\n5. Morning routines',
-      author: '@productivityguru',
-      category: 'Productivity',
-      sentiment: 'neutral'
-    },
-    {
-      id: '3',
-      content: 'Building in public is scary. But it\'s also the best way to find your tribe, get feedback, and stay accountable.',
-      author: '@startupfounder',
-      category: 'Entrepreneurship',
-      sentiment: 'positive'
-    }
-  ];
-
-  // Analyze interests from likes
-  const insights = {
-    topCategories: ['AI & Technology', 'Productivity', 'Entrepreneurship'],
-    writingStyle: 'casual and conversational',
-    preferredTopics: ['tech trends', 'productivity tips', 'startup insights'],
-    sentimentDistribution: {
-      positive: 60,
-      neutral: 30,
-      negative: 10
-    }
-  };
-
-  // Store in user record
-  req.user.likedTweets = demoLikes;
-  req.user.contentPreferences = {
-    ...insights,
-    lastAnalyzed: new Date()
-  };
-  await req.user.save();
-
-  res.status(200).json({
-    status: 'success',
-    message: 'Likes imported and analyzed successfully',
-    data: {
-      likesCount: demoLikes.length,
-      insights,
-      samples: demoLikes.slice(0, 3)
-    }
-  });
+  // Redirect to new import-style endpoint
+  return next(new AppError('This endpoint is deprecated. Use POST /api/profiles/import-style instead.', 410));
 });

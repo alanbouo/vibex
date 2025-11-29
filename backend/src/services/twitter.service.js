@@ -8,6 +8,65 @@ class TwitterService {
   }
 
   /**
+   * Handle Twitter API errors with proper rate limit detection
+   */
+  handleTwitterError(error, context) {
+    const errorData = error?.data || {};
+    const headers = error?.headers || {};
+    const code = error?.code || error?.statusCode;
+
+    // Log detailed error info
+    logger.error(`Twitter ${context} Error:`, {
+      code,
+      data: errorData,
+      headers: {
+        'x-rate-limit-limit': headers['x-rate-limit-limit'],
+        'x-rate-limit-remaining': headers['x-rate-limit-remaining'],
+        'x-rate-limit-reset': headers['x-rate-limit-reset'],
+        'x-user-limit-24hour-remaining': headers['x-user-limit-24hour-remaining'],
+      },
+      message: error.message,
+      stack: error.stack,
+    });
+
+    // Check for rate limit errors (429)
+    if (code === 429) {
+      // Check for monthly usage cap
+      if (errorData.detail?.includes('Usage cap exceeded') || errorData.title === 'UsageCapExceeded') {
+        const resetDate = headers['x-rate-limit-reset'] 
+          ? new Date(parseInt(headers['x-rate-limit-reset']) * 1000).toISOString()
+          : 'unknown';
+        throw new AppError(
+          `Twitter API monthly limit reached. Your API plan's quota has been exhausted. Please upgrade your Twitter API tier or wait until next month.`,
+          429
+        );
+      }
+
+      // Check for 24-hour user limit
+      const userDayRemaining = headers['x-user-limit-24hour-remaining'];
+      if (userDayRemaining === '0' || userDayRemaining === 0) {
+        const resetTimestamp = headers['x-user-limit-24hour-reset'];
+        const resetDate = resetTimestamp 
+          ? new Date(parseInt(resetTimestamp) * 1000).toLocaleString()
+          : 'in 24 hours';
+        throw new AppError(
+          `Twitter API daily limit reached. The free tier allows only 1 request per day. Limit resets ${resetDate}.`,
+          429
+        );
+      }
+
+      // Generic rate limit
+      throw new AppError(
+        'Twitter API rate limit exceeded. Please try again later.',
+        429
+      );
+    }
+
+    // Re-throw original error for other cases
+    throw new AppError(`Failed to ${context.toLowerCase()}`, 500);
+  }
+
+  /**
    * Initialize Twitter client for a user
    */
   getUserClient(accessToken) {
@@ -106,8 +165,7 @@ class TwitterService {
 
       return user.data;
     } catch (error) {
-      logger.error('Twitter Get Profile Error:', error);
-      throw new AppError('Failed to fetch profile', 500);
+      this.handleTwitterError(error, 'Get Profile');
     }
   }
 
@@ -126,8 +184,7 @@ class TwitterService {
 
       return tweets.data.data || [];
     } catch (error) {
-      logger.error('Twitter Get Tweets Error:', error);
-      throw new AppError('Failed to fetch tweets', 500);
+      this.handleTwitterError(error, 'Get Tweets');
     }
   }
 
@@ -208,6 +265,41 @@ class TwitterService {
   }
 
   /**
+   * Get user's liked tweets (for style analysis)
+   * Uses 1 API read
+   */
+  async getUserLikes(accessToken, userId, options = {}) {
+    try {
+      const client = this.getUserClient(accessToken);
+      
+      const likes = await client.v2.userLikedTweets(userId, {
+        max_results: options.maxResults || 50,
+        'tweet.fields': ['created_at', 'public_metrics', 'entities', 'author_id'],
+        'user.fields': ['username', 'name'],
+        expansions: ['author_id']
+      });
+
+      const tweets = likes.data.data || [];
+      const users = likes.includes?.users || [];
+
+      // Map author info to tweets
+      return tweets.map(tweet => {
+        const author = users.find(u => u.id === tweet.author_id);
+        return {
+          id: tweet.id,
+          content: tweet.text,
+          author: author ? `@${author.username}` : 'unknown',
+          authorName: author?.name || 'Unknown',
+          metrics: tweet.public_metrics,
+          createdAt: tweet.created_at
+        };
+      });
+    } catch (error) {
+      this.handleTwitterError(error, 'Get Likes');
+    }
+  }
+
+  /**
    * Get optimal posting times based on audience activity
    */
   async getOptimalPostingTimes(accessToken, userId) {
@@ -232,8 +324,6 @@ class TwitterService {
    */
   async analyzeProfileEngagement(accessToken, userId) {
     try {
-      const client = this.getUserClient(accessToken);
-      
       // Get recent tweets
       const tweets = await this.getUserTweets(accessToken, userId, { maxResults: 100 });
       
@@ -274,8 +364,11 @@ class TwitterService {
         totalTweets: count
       };
     } catch (error) {
-      logger.error('Profile Analysis Error:', error);
-      throw new AppError('Failed to analyze profile', 500);
+      // Re-throw rate limit errors with proper message
+      if (error instanceof AppError) {
+        throw error;
+      }
+      this.handleTwitterError(error, 'Analyze Profile');
     }
   }
 }
