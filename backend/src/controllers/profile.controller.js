@@ -174,26 +174,20 @@ export const importStyle = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Fetch tweets and likes from Twitter (2 API calls)
+  // Fetch tweets from Twitter (1 API call)
+  // Note: Likes endpoint requires Basic tier ($100/mo), so we skip it on Free tier
   let tweets = [];
-  let likes = [];
+  let likes = []; // Empty - Likes API not available on Free tier
 
   try {
     tweets = await twitterService.getUserTweets(accessToken, userId, { maxResults: 50 });
   } catch (error) {
-    // Continue even if tweets fail
     console.error('Failed to fetch tweets:', error.message);
+    return next(new AppError('Failed to fetch your tweets. ' + error.message, 400));
   }
 
-  try {
-    likes = await twitterService.getUserLikes(accessToken, userId, { maxResults: 50 });
-  } catch (error) {
-    // Continue even if likes fail
-    console.error('Failed to fetch likes:', error.message);
-  }
-
-  if (tweets.length === 0 && likes.length === 0) {
-    return next(new AppError('Could not fetch any tweets or likes. Please try again later.', 400));
+  if (tweets.length === 0) {
+    return next(new AppError('No tweets found. Please post some tweets first, then try again.', 400));
   }
 
   // Format tweets for storage
@@ -227,9 +221,9 @@ export const importStyle = asyncHandler(async (req, res, next) => {
     message: 'Style imported and analyzed successfully!',
     data: {
       tweetsImported: formattedTweets.length,
-      likesImported: likes.length,
+      likesImported: 0, // Likes API requires Basic tier
       styleProfile,
-      apiCallsUsed: 2
+      apiCallsUsed: 1
     }
   });
 });
