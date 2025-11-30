@@ -13,7 +13,7 @@ coverage/
 
 # Production
 build/
-dist/
+#dist/
 *.tgz
 
 # Environment
@@ -58,7 +58,6 @@ tmp/
 
 # Extension builds
 extension/build/
-extension/dist/
 
 # Database
 *.db

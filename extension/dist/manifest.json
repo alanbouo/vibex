@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Vibex - X Data Collector",
+  "version": "2.0.0",
+  "description": "Collect your posts, likes and get AI writing assistance - No API needed",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://x.com/*",
+    "http://localhost:5000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://x.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*", "writer.html"],
+      "matches": ["https://twitter.com/*", "https://x.com/*"]
+    }
+  ],
+  "commands": {
+    "collect-posts": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "Collect posts from current page"
+    },
+    "open-writer": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+W",
+        "mac": "Command+Shift+W"
+      },
+      "description": "Open AI writing assistant"
+    }
+  }
+}
