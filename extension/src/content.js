@@ -1,159 +1,664 @@
 // Content script for Vibex - Runs on Twitter/X pages
+// Version 2.0 - Data Collection & AI Writing Assistant
 
-console.log('Vibex extension loaded');
+console.log('Vibex extension v2.0 loaded');
 
 // Configuration
 const CONFIG = {
   selectors: {
-    profileUsername: '[data-testid="UserName"]',
+    // Tweet selectors
     tweet: '[data-testid="tweet"]',
     tweetText: '[data-testid="tweetText"]',
+    tweetTime: 'time',
+    tweetLink: 'a[href*="/status/"]',
+    // Engagement selectors
+    replyCount: '[data-testid="reply"]',
+    retweetCount: '[data-testid="retweet"]',
+    likeCount: '[data-testid="like"]',
+    viewCount: '[data-testid="views"]',
+    // Profile selectors
+    profileUsername: '[data-testid="UserName"]',
     profileHeader: '[data-testid="UserProfileHeader_Items"]',
+    // Compose selectors
+    composeBox: '[data-testid="tweetTextarea_0"]',
+    composeButton: '[data-testid="tweetButtonInline"]',
   }
 };
 
-// Initialize extension on page load
-function init() {
-  // Add insights to profile pages
-  if (window.location.pathname.includes('/status/')) {
-    enhanceTweetPage();
-  } else if (isProfilePage()) {
-    enhanceProfilePage();
-  }
+// State
+let isCollecting = false;
+let collectedPosts = [];
+let collectedLikes = [];
+let writerPanel = null;
 
-  // Listen for dynamic content changes
+// ==========================================
+// INITIALIZATION
+// ==========================================
+
+function init() {
+  console.log('Vibex: Initializing...');
+  
+  // Detect page type and add appropriate UI
+  const pageType = detectPageType();
+  
+  if (pageType === 'profile' || pageType === 'likes') {
+    addCollectorUI();
+  }
+  
+  if (pageType === 'compose' || pageType === 'home') {
+    addWriterButton();
+  }
+  
+  // Always add floating action button
+  addFloatingButton();
+  
+  // Listen for messages from popup/background
+  chrome.runtime.onMessage.addListener(handleMessage);
+  
+  // Observe page changes
   observePageChanges();
 }
 
-// Check if current page is a profile
-function isProfilePage() {
+// ==========================================
+// PAGE DETECTION
+// ==========================================
+
+function detectPageType() {
   const path = window.location.pathname;
-  return path.split('/').length === 2 && !path.includes('home') && !path.includes('explore');
-}
-
-// Add insights to profile pages
-function enhanceProfilePage() {
-  const username = extractUsername();
-  if (!username) return;
-
-  // Add insights card to profile
-  setTimeout(() => {
-    addProfileInsightsCard(username);
-  }, 1000);
-}
-
-// Add insights to individual tweet pages
-function enhanceTweetPage() {
-  setTimeout(() => {
-    addTweetInsightsCard();
-  }, 1000);
-}
-
-// Extract username from profile page
-function extractUsername() {
-  try {
-    const path = window.location.pathname;
-    return path.split('/')[1];
-  } catch (error) {
-    return null;
-  }
-}
-
-// Add insights card to profile
-function addProfileInsightsCard(username) {
-  const profileHeader = document.querySelector(CONFIG.selectors.profileHeader);
-  if (!profileHeader || document.getElementById('vibex-insights')) return;
-
-  const insightsCard = createInsightsCard('profile', username);
-  profileHeader.parentElement.insertBefore(insightsCard, profileHeader.nextSibling);
-
-  // Fetch and display insights
-  fetchProfileInsights(username);
-}
-
-// Add insights card to tweet
-function addTweetInsightsCard() {
-  const tweetElement = document.querySelector(CONFIG.selectors.tweet);
-  if (!tweetElement || document.getElementById('vibex-tweet-insights')) return;
-
-  const insightsCard = createInsightsCard('tweet');
-  tweetElement.parentElement.insertBefore(insightsCard, tweetElement.nextSibling);
-}
-
-// Create insights card UI
-function createInsightsCard(type, username = '') {
-  const card = document.createElement('div');
-  card.id = type === 'profile' ? 'vibex-insights' : 'vibex-tweet-insights';
-  card.className = 'vibex-card';
   
-  card.innerHTML = `
-    <div class="vibex-header">
+  if (path.includes('/likes')) return 'likes';
+  if (path.includes('/status/')) return 'tweet';
+  if (path === '/compose/tweet') return 'compose';
+  if (path === '/home') return 'home';
+  if (path.split('/').length === 2 && !['home', 'explore', 'notifications', 'messages', 'search'].includes(path.split('/')[1])) {
+    return 'profile';
+  }
+  return 'other';
+}
+
+function extractUsername() {
+  const path = window.location.pathname;
+  const parts = path.split('/').filter(p => p);
+  return parts[0] || null;
+}
+
+// ==========================================
+// POST SCRAPING
+// ==========================================
+
+function scrapeTweets() {
+  const tweets = document.querySelectorAll(CONFIG.selectors.tweet);
+  const scrapedData = [];
+  
+  tweets.forEach((tweet, index) => {
+    try {
+      const data = extractTweetData(tweet);
+      if (data && data.text) {
+        scrapedData.push(data);
+      }
+    } catch (error) {
+      console.error('Vibex: Error scraping tweet', index, error);
+    }
+  });
+  
+  return scrapedData;
+}
+
+function extractTweetData(tweetElement) {
+  // Get tweet text
+  const textElement = tweetElement.querySelector(CONFIG.selectors.tweetText);
+  const text = textElement ? textElement.innerText : '';
+  
+  // Get tweet link/ID
+  const linkElement = tweetElement.querySelector(CONFIG.selectors.tweetLink);
+  const tweetUrl = linkElement ? linkElement.href : '';
+  const tweetId = tweetUrl ? tweetUrl.split('/status/')[1]?.split('?')[0] : '';
+  
+  // Get timestamp
+  const timeElement = tweetElement.querySelector(CONFIG.selectors.tweetTime);
+  const timestamp = timeElement ? timeElement.getAttribute('datetime') : '';
+  const displayTime = timeElement ? timeElement.innerText : '';
+  
+  // Get engagement metrics
+  const metrics = extractEngagementMetrics(tweetElement);
+  
+  // Get author info
+  const authorInfo = extractAuthorInfo(tweetElement);
+  
+  return {
+    id: tweetId,
+    text: text,
+    url: tweetUrl,
+    timestamp: timestamp,
+    displayTime: displayTime,
+    ...metrics,
+    ...authorInfo,
+    scrapedAt: new Date().toISOString()
+  };
+}
+
+function extractEngagementMetrics(tweetElement) {
+  const getMetricValue = (selector) => {
+    const element = tweetElement.querySelector(selector);
+    if (!element) return 0;
+    const text = element.innerText || element.getAttribute('aria-label') || '';
+    const match = text.match(/[\d,]+/);
+    return match ? parseInt(match[0].replace(/,/g, ''), 10) : 0;
+  };
+  
+  return {
+    replies: getMetricValue(CONFIG.selectors.replyCount),
+    retweets: getMetricValue(CONFIG.selectors.retweetCount),
+    likes: getMetricValue(CONFIG.selectors.likeCount),
+    views: getMetricValue(CONFIG.selectors.viewCount)
+  };
+}
+
+function extractAuthorInfo(tweetElement) {
+  const userNameElement = tweetElement.querySelector('[data-testid="User-Name"]');
+  if (!userNameElement) return { author: '', handle: '' };
+  
+  const links = userNameElement.querySelectorAll('a');
+  const displayName = links[0]?.innerText || '';
+  const handle = links[1]?.innerText || links[0]?.href?.split('/').pop() || '';
+  
+  return {
+    author: displayName,
+    handle: handle.replace('@', '')
+  };
+}
+
+// ==========================================
+// AUTO-SCROLL COLLECTION
+// ==========================================
+
+async function collectAllPosts(type = 'posts') {
+  if (isCollecting) {
+    stopCollection();
+    return;
+  }
+  
+  isCollecting = true;
+  const collection = type === 'likes' ? collectedLikes : collectedPosts;
+  const seenIds = new Set(collection.map(p => p.id));
+  let noNewPostsCount = 0;
+  const maxNoNewPosts = 5;
+  
+  updateCollectorStatus(`Collecting ${type}... (0 collected)`);
+  
+  while (isCollecting && noNewPostsCount < maxNoNewPosts) {
+    const tweets = scrapeTweets();
+    let newCount = 0;
+    
+    tweets.forEach(tweet => {
+      if (tweet.id && !seenIds.has(tweet.id)) {
+        seenIds.add(tweet.id);
+        collection.push(tweet);
+        newCount++;
+      }
+    });
+    
+    if (newCount === 0) {
+      noNewPostsCount++;
+    } else {
+      noNewPostsCount = 0;
+    }
+    
+    updateCollectorStatus(`Collecting ${type}... (${collection.length} collected)`);
+    
+    // Scroll down
+    window.scrollBy(0, window.innerHeight * 0.8);
+    
+    // Wait for content to load
+    await sleep(1500);
+  }
+  
+  isCollecting = false;
+  updateCollectorStatus(`Done! ${collection.length} ${type} collected`);
+  
+  // Save to storage
+  saveCollectedData(type, collection);
+  
+  return collection;
+}
+
+function stopCollection() {
+  isCollecting = false;
+  updateCollectorStatus('Collection stopped');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ==========================================
+// DATA STORAGE
+// ==========================================
+
+function saveCollectedData(type, data) {
+  const key = type === 'likes' ? 'vibex_likes' : 'vibex_posts';
+  const storageData = {
+    [key]: data,
+    [`${key}_updated`]: new Date().toISOString()
+  };
+  
+  chrome.storage.local.set(storageData, () => {
+    console.log(`Vibex: Saved ${data.length} ${type} to storage`);
+    // Notify background script
+    chrome.runtime.sendMessage({
+      action: 'dataCollected',
+      type: type,
+      count: data.length
+    });
+  });
+}
+
+function loadCollectedData(type) {
+  return new Promise((resolve) => {
+    const key = type === 'likes' ? 'vibex_likes' : 'vibex_posts';
+    chrome.storage.local.get([key], (result) => {
+      resolve(result[key] || []);
+    });
+  });
+}
+
+// ==========================================
+// UI COMPONENTS
+// ==========================================
+
+function addCollectorUI() {
+  if (document.getElementById('vibex-collector')) return;
+  
+  const pageType = detectPageType();
+  const isLikesPage = pageType === 'likes';
+  
+  const collector = document.createElement('div');
+  collector.id = 'vibex-collector';
+  collector.className = 'vibex-collector';
+  collector.innerHTML = `
+    <div class="vibex-collector-header">
       <svg class="vibex-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="vibex-title">Vibex Insights</span>
+      <span>Vibex Collector</span>
+      <button class="vibex-close" id="vibex-collector-close">&times;</button>
     </div>
-    <div class="vibex-content" id="vibex-content">
-      <div class="vibex-loading">Loading insights...</div>
+    <div class="vibex-collector-body">
+      <p class="vibex-collector-status" id="vibex-status">Ready to collect ${isLikesPage ? 'likes' : 'posts'}</p>
+      <div class="vibex-collector-actions">
+        <button class="vibex-btn vibex-btn-primary" id="vibex-collect-btn">
+          ${isLikesPage ? '❤️ Collect Likes' : '📝 Collect Posts'}
+        </button>
+        <button class="vibex-btn vibex-btn-secondary" id="vibex-export-btn">
+          📥 Export JSON
+        </button>
+      </div>
+      <div class="vibex-collector-stats" id="vibex-stats">
+        <span>Posts: <strong id="vibex-posts-count">0</strong></span>
+        <span>Likes: <strong id="vibex-likes-count">0</strong></span>
+      </div>
     </div>
   `;
-
-  return card;
+  
+  document.body.appendChild(collector);
+  
+  // Event listeners
+  document.getElementById('vibex-collect-btn').addEventListener('click', () => {
+    collectAllPosts(isLikesPage ? 'likes' : 'posts');
+  });
+  
+  document.getElementById('vibex-export-btn').addEventListener('click', exportData);
+  document.getElementById('vibex-collector-close').addEventListener('click', () => {
+    collector.style.display = 'none';
+  });
+  
+  // Load existing counts
+  updateStorageCounts();
 }
 
-// Fetch profile insights from background script
-function fetchProfileInsights(username) {
-  chrome.runtime.sendMessage(
-    { action: 'analyzeProfile', username },
-    (response) => {
-      if (response && response.success) {
-        displayProfileInsights(response.data);
-      } else {
-        displayError('Failed to load insights');
-      }
+function addFloatingButton() {
+  if (document.getElementById('vibex-fab')) return;
+  
+  const fab = document.createElement('div');
+  fab.id = 'vibex-fab';
+  fab.className = 'vibex-fab';
+  fab.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+  fab.title = 'Vibex Menu';
+  
+  document.body.appendChild(fab);
+  
+  fab.addEventListener('click', toggleVibexMenu);
+}
+
+function toggleVibexMenu() {
+  let menu = document.getElementById('vibex-menu');
+  
+  if (menu) {
+    menu.remove();
+    return;
+  }
+  
+  menu = document.createElement('div');
+  menu.id = 'vibex-menu';
+  menu.className = 'vibex-menu';
+  menu.innerHTML = `
+    <button class="vibex-menu-item" id="vibex-menu-collect">
+      📝 Collect Posts
+    </button>
+    <button class="vibex-menu-item" id="vibex-menu-likes">
+      ❤️ Collect Likes
+    </button>
+    <button class="vibex-menu-item" id="vibex-menu-writer">
+      ✍️ AI Writer
+    </button>
+    <button class="vibex-menu-item" id="vibex-menu-export">
+      📥 Export Data
+    </button>
+    <button class="vibex-menu-item" id="vibex-menu-dashboard">
+      📊 Dashboard
+    </button>
+  `;
+  
+  document.body.appendChild(menu);
+  
+  // Event listeners
+  document.getElementById('vibex-menu-collect').addEventListener('click', () => {
+    menu.remove();
+    collectAllPosts('posts');
+  });
+  
+  document.getElementById('vibex-menu-likes').addEventListener('click', () => {
+    menu.remove();
+    // Navigate to likes page if not there
+    const username = extractUsername();
+    if (username && !window.location.pathname.includes('/likes')) {
+      window.location.href = `https://x.com/${username}/likes`;
+    } else {
+      collectAllPosts('likes');
     }
-  );
+  });
+  
+  document.getElementById('vibex-menu-writer').addEventListener('click', () => {
+    menu.remove();
+    toggleWriterPanel();
+  });
+  
+  document.getElementById('vibex-menu-export').addEventListener('click', () => {
+    menu.remove();
+    exportData();
+  });
+  
+  document.getElementById('vibex-menu-dashboard').addEventListener('click', () => {
+    menu.remove();
+    chrome.runtime.sendMessage({ action: 'openDashboard' });
+  });
+  
+  // Close menu when clicking outside
+  setTimeout(() => {
+    document.addEventListener('click', function closeMenu(e) {
+      if (!menu.contains(e.target) && e.target.id !== 'vibex-fab') {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    });
+  }, 100);
 }
 
-// Display profile insights
-function displayProfileInsights(data) {
-  const content = document.getElementById('vibex-content');
-  if (!content) return;
+function addWriterButton() {
+  // Add writer button near compose box
+  const composeBox = document.querySelector(CONFIG.selectors.composeBox);
+  if (!composeBox || document.getElementById('vibex-writer-btn')) return;
+  
+  const btn = document.createElement('button');
+  btn.id = 'vibex-writer-btn';
+  btn.className = 'vibex-writer-btn';
+  btn.innerHTML = '✨ AI';
+  btn.title = 'Open Vibex AI Writer';
+  btn.addEventListener('click', toggleWriterPanel);
+  
+  composeBox.parentElement.appendChild(btn);
+}
 
-  const analytics = data.data?.analytics || {};
+// ==========================================
+// AI WRITER PANEL
+// ==========================================
 
-  content.innerHTML = `
-    <div class="vibex-stats">
-      <div class="vibex-stat">
-        <span class="stat-label">Avg Engagement</span>
-        <span class="stat-value">${analytics.avgEngagement || 0}</span>
+function toggleWriterPanel() {
+  if (writerPanel) {
+    writerPanel.remove();
+    writerPanel = null;
+    return;
+  }
+  
+  writerPanel = document.createElement('div');
+  writerPanel.id = 'vibex-writer';
+  writerPanel.className = 'vibex-writer';
+  writerPanel.innerHTML = `
+    <div class="vibex-writer-header">
+      <h3>✨ Vibex AI Writer</h3>
+      <button class="vibex-close" id="vibex-writer-close">&times;</button>
+    </div>
+    <div class="vibex-writer-body">
+      <div class="vibex-writer-section">
+        <label>What do you want to write about?</label>
+        <textarea id="vibex-writer-topic" placeholder="e.g., My thoughts on AI productivity tools..."></textarea>
       </div>
-      <div class="vibex-stat">
-        <span class="stat-label">Avg Likes</span>
-        <span class="stat-value">${analytics.avgLikes || 0}</span>
+      <div class="vibex-writer-section">
+        <label>Tone</label>
+        <select id="vibex-writer-tone">
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="humorous">Humorous</option>
+          <option value="inspirational">Inspirational</option>
+          <option value="controversial">Controversial</option>
+        </select>
       </div>
-      <div class="vibex-stat">
-        <span class="stat-label">Avg Retweets</span>
-        <span class="stat-value">${analytics.avgRetweets || 0}</span>
+      <div class="vibex-writer-section">
+        <label>Style</label>
+        <select id="vibex-writer-style">
+          <option value="thread">Thread (multiple tweets)</option>
+          <option value="single">Single tweet</option>
+          <option value="hook">Hook + Value</option>
+          <option value="story">Storytelling</option>
+        </select>
+      </div>
+      <div class="vibex-writer-section">
+        <label>
+          <input type="checkbox" id="vibex-writer-use-style"> 
+          Match my writing style (from collected posts)
+        </label>
+      </div>
+      <button class="vibex-btn vibex-btn-primary vibex-btn-full" id="vibex-generate-btn">
+        ✨ Generate Post
+      </button>
+      <div class="vibex-writer-output" id="vibex-writer-output" style="display: none;">
+        <label>Generated Post</label>
+        <div id="vibex-generated-text"></div>
+        <div class="vibex-writer-actions">
+          <button class="vibex-btn vibex-btn-secondary" id="vibex-copy-btn">📋 Copy</button>
+          <button class="vibex-btn vibex-btn-secondary" id="vibex-insert-btn">📝 Insert</button>
+          <button class="vibex-btn vibex-btn-secondary" id="vibex-regenerate-btn">🔄 Regenerate</button>
+        </div>
       </div>
     </div>
-    <div class="vibex-tip">
-      💡 This profile shows ${analytics.avgEngagement > 100 ? 'strong' : 'moderate'} engagement
-    </div>
   `;
+  
+  document.body.appendChild(writerPanel);
+  
+  // Event listeners
+  document.getElementById('vibex-writer-close').addEventListener('click', toggleWriterPanel);
+  document.getElementById('vibex-generate-btn').addEventListener('click', generatePost);
+  document.getElementById('vibex-copy-btn')?.addEventListener('click', copyGeneratedPost);
+  document.getElementById('vibex-insert-btn')?.addEventListener('click', insertGeneratedPost);
+  document.getElementById('vibex-regenerate-btn')?.addEventListener('click', generatePost);
 }
 
-// Display error message
-function displayError(message) {
-  const content = document.getElementById('vibex-content');
-  if (!content) return;
-
-  content.innerHTML = `
-    <div class="vibex-error">${message}</div>
-  `;
+async function generatePost() {
+  const topic = document.getElementById('vibex-writer-topic').value;
+  const tone = document.getElementById('vibex-writer-tone').value;
+  const style = document.getElementById('vibex-writer-style').value;
+  const useMyStyle = document.getElementById('vibex-writer-use-style').checked;
+  
+  if (!topic.trim()) {
+    alert('Please enter a topic');
+    return;
+  }
+  
+  const generateBtn = document.getElementById('vibex-generate-btn');
+  generateBtn.disabled = true;
+  generateBtn.textContent = '⏳ Generating...';
+  
+  try {
+    // Get sample posts if using personal style
+    let samplePosts = [];
+    if (useMyStyle) {
+      const posts = await loadCollectedData('posts');
+      samplePosts = posts.slice(0, 10).map(p => p.text);
+    }
+    
+    // Send to background script for AI generation
+    chrome.runtime.sendMessage({
+      action: 'generatePost',
+      data: { topic, tone, style, samplePosts }
+    }, (response) => {
+      generateBtn.disabled = false;
+      generateBtn.textContent = '✨ Generate Post';
+      
+      if (response && response.success) {
+        displayGeneratedPost(response.text);
+      } else {
+        alert('Failed to generate post: ' + (response?.error || 'Unknown error'));
+      }
+    });
+  } catch (error) {
+    generateBtn.disabled = false;
+    generateBtn.textContent = '✨ Generate Post';
+    alert('Error generating post: ' + error.message);
+  }
 }
 
-// Observe page changes for single-page app navigation
+function displayGeneratedPost(text) {
+  const output = document.getElementById('vibex-writer-output');
+  const textDiv = document.getElementById('vibex-generated-text');
+  
+  output.style.display = 'block';
+  textDiv.textContent = text;
+  
+  // Re-attach event listeners
+  document.getElementById('vibex-copy-btn').addEventListener('click', copyGeneratedPost);
+  document.getElementById('vibex-insert-btn').addEventListener('click', insertGeneratedPost);
+  document.getElementById('vibex-regenerate-btn').addEventListener('click', generatePost);
+}
+
+function copyGeneratedPost() {
+  const text = document.getElementById('vibex-generated-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('vibex-copy-btn');
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 2000);
+  });
+}
+
+function insertGeneratedPost() {
+  const text = document.getElementById('vibex-generated-text').textContent;
+  const composeBox = document.querySelector(CONFIG.selectors.composeBox);
+  
+  if (composeBox) {
+    composeBox.focus();
+    document.execCommand('insertText', false, text);
+  } else {
+    // Open compose and copy
+    copyGeneratedPost();
+    alert('Text copied! Open the compose box and paste.');
+  }
+}
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+
+function updateCollectorStatus(message) {
+  const status = document.getElementById('vibex-status');
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+async function updateStorageCounts() {
+  const posts = await loadCollectedData('posts');
+  const likes = await loadCollectedData('likes');
+  
+  const postsCount = document.getElementById('vibex-posts-count');
+  const likesCount = document.getElementById('vibex-likes-count');
+  
+  if (postsCount) postsCount.textContent = posts.length;
+  if (likesCount) likesCount.textContent = likes.length;
+  
+  // Update global state
+  collectedPosts = posts;
+  collectedLikes = likes;
+}
+
+async function exportData() {
+  const posts = await loadCollectedData('posts');
+  const likes = await loadCollectedData('likes');
+  
+  const data = {
+    exportedAt: new Date().toISOString(),
+    posts: posts,
+    likes: likes
+  };
+  
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vibex-export-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+}
+
+// ==========================================
+// MESSAGE HANDLING
+// ==========================================
+
+function handleMessage(request, sender, sendResponse) {
+  switch (request.action) {
+    case 'collectPosts':
+      collectAllPosts('posts').then(data => sendResponse({ success: true, count: data.length }));
+      return true;
+      
+    case 'collectLikes':
+      collectAllPosts('likes').then(data => sendResponse({ success: true, count: data.length }));
+      return true;
+      
+    case 'getCollectedData':
+      Promise.all([loadCollectedData('posts'), loadCollectedData('likes')])
+        .then(([posts, likes]) => sendResponse({ posts, likes }));
+      return true;
+      
+    case 'openWriter':
+      toggleWriterPanel();
+      sendResponse({ success: true });
+      break;
+      
+    case 'stopCollection':
+      stopCollection();
+      sendResponse({ success: true });
+      break;
+  }
+}
+
+// ==========================================
+// PAGE CHANGE OBSERVER
+// ==========================================
+
 function observePageChanges() {
   let lastPath = window.location.pathname;
 
@@ -162,9 +667,12 @@ function observePageChanges() {
     if (currentPath !== lastPath) {
       lastPath = currentPath;
       
-      // Remove old insights
-      const oldInsights = document.getElementById('vibex-insights');
-      if (oldInsights) oldInsights.remove();
+      // Clean up old UI
+      ['vibex-collector', 'vibex-menu', 'vibex-writer'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+      });
+      writerPanel = null;
 
       // Re-initialize
       setTimeout(init, 500);
@@ -172,7 +680,10 @@ function observePageChanges() {
   }, 1000);
 }
 
-// Initialize when DOM is ready
+// ==========================================
+// INITIALIZATION
+// ==========================================
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {

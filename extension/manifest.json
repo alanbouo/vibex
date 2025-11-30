@@ -1,16 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Vibex",
-  "version": "1.0.0",
-  "description": "AI-powered insights for X (Twitter) growth",
+  "name": "Vibex - X Data Collector",
+  "version": "2.0.0",
+  "description": "Collect your posts, likes and get AI writing assistance - No API needed",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "contextMenus",
+    "notifications"
   ],
   "host_permissions": [
     "https://twitter.com/*",
-    "https://x.com/*"
+    "https://x.com/*",
+    "http://localhost:5000/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -27,22 +30,28 @@
     }
   ],
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "default_popup": "popup.html"
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/*"],
+      "resources": ["assets/*", "writer.html"],
       "matches": ["https://twitter.com/*", "https://x.com/*"]
     }
-  ]
+  ],
+  "commands": {
+    "collect-posts": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "Collect posts from current page"
+    },
+    "open-writer": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+W",
+        "mac": "Command+Shift+W"
+      },
+      "description": "Open AI writing assistant"
+    }
+  }
 }

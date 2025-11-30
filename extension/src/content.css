@@ -1,11 +1,413 @@
-/* Vibex Extension Styles */
+/* Vibex Extension Styles v2.0 */
 
+/* ==========================================
+   VARIABLES
+   ========================================== */
+:root {
+  --vibex-primary: #667eea;
+  --vibex-secondary: #764ba2;
+  --vibex-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --vibex-white: #ffffff;
+  --vibex-white-80: rgba(255, 255, 255, 0.8);
+  --vibex-white-20: rgba(255, 255, 255, 0.2);
+  --vibex-white-10: rgba(255, 255, 255, 0.1);
+  --vibex-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  --vibex-radius: 12px;
+  --vibex-radius-lg: 16px;
+}
+
+/* ==========================================
+   FLOATING ACTION BUTTON
+   ========================================== */
+.vibex-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  background: var(--vibex-gradient);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--vibex-shadow);
+  z-index: 10000;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.vibex-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
+}
+
+.vibex-fab svg {
+  width: 28px;
+  height: 28px;
+  stroke: white;
+}
+
+/* ==========================================
+   FLOATING MENU
+   ========================================== */
+.vibex-menu {
+  position: fixed;
+  bottom: 90px;
+  right: 24px;
+  background: var(--vibex-white);
+  border-radius: var(--vibex-radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 10001;
+  overflow: hidden;
+  min-width: 180px;
+  animation: vibex-slide-up 0.2s ease-out;
+}
+
+@keyframes vibex-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vibex-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a2e;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.vibex-menu-item:hover {
+  background: #f5f5f7;
+}
+
+.vibex-menu-item:not(:last-child) {
+  border-bottom: 1px solid #eee;
+}
+
+/* ==========================================
+   COLLECTOR PANEL
+   ========================================== */
+.vibex-collector {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  width: 320px;
+  background: var(--vibex-white);
+  border-radius: var(--vibex-radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  overflow: hidden;
+  animation: vibex-slide-in 0.3s ease-out;
+}
+
+@keyframes vibex-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.vibex-collector-header {
+  background: var(--vibex-gradient);
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  color: white;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.vibex-collector-header .vibex-icon {
+  width: 22px;
+  height: 22px;
+  margin-right: 10px;
+  stroke: white;
+}
+
+.vibex-collector-body {
+  padding: 18px;
+}
+
+.vibex-collector-status {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f5f5f7;
+  border-radius: 8px;
+}
+
+.vibex-collector-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.vibex-collector-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 12px;
+  background: #f5f5f7;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.vibex-collector-stats strong {
+  color: var(--vibex-primary);
+  font-weight: 700;
+}
+
+/* ==========================================
+   BUTTONS
+   ========================================== */
+.vibex-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.vibex-btn-primary {
+  background: var(--vibex-gradient);
+  color: white;
+}
+
+.vibex-btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.vibex-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.vibex-btn-secondary {
+  background: #f0f0f5;
+  color: #1a1a2e;
+}
+
+.vibex-btn-secondary:hover {
+  background: #e5e5ea;
+}
+
+.vibex-btn-full {
+  width: 100%;
+}
+
+.vibex-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  line-height: 1;
+  padding: 0;
+}
+
+.vibex-close:hover {
+  opacity: 1;
+}
+
+/* ==========================================
+   AI WRITER PANEL
+   ========================================== */
+.vibex-writer {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-height: 90vh;
+  background: var(--vibex-white);
+  border-radius: var(--vibex-radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  z-index: 10002;
+  overflow: hidden;
+  animation: vibex-fade-in 0.25s ease-out;
+}
+
+@keyframes vibex-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.vibex-writer-header {
+  background: var(--vibex-gradient);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vibex-writer-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: white;
+}
+
+.vibex-writer-header .vibex-close {
+  color: white;
+}
+
+.vibex-writer-body {
+  padding: 20px;
+  max-height: calc(90vh - 60px);
+  overflow-y: auto;
+}
+
+.vibex-writer-section {
+  margin-bottom: 18px;
+}
+
+.vibex-writer-section label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+}
+
+.vibex-writer-section textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 2px solid #e5e5ea;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.vibex-writer-section textarea:focus {
+  outline: none;
+  border-color: var(--vibex-primary);
+}
+
+.vibex-writer-section select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e5ea;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.vibex-writer-section select:focus {
+  outline: none;
+  border-color: var(--vibex-primary);
+}
+
+.vibex-writer-section input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: var(--vibex-primary);
+}
+
+.vibex-writer-output {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e5ea;
+}
+
+.vibex-writer-output label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 10px;
+}
+
+#vibex-generated-text {
+  background: #f5f5f7;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1a1a2e;
+  white-space: pre-wrap;
+  margin-bottom: 14px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vibex-writer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.vibex-writer-actions .vibex-btn {
+  flex: 1;
+}
+
+/* ==========================================
+   WRITER BUTTON (near compose)
+   ========================================== */
+.vibex-writer-btn {
+  background: var(--vibex-gradient);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: all 0.2s;
+}
+
+.vibex-writer-btn:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transform: scale(1.05);
+}
+
+/* ==========================================
+   LEGACY CARD STYLES (kept for compatibility)
+   ========================================== */
 .vibex-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
+  background: var(--vibex-gradient);
+  border-radius: var(--vibex-radius-lg);
   padding: 20px;
   margin: 16px 0;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--vibex-shadow);
   color: white;
 }
 
@@ -29,15 +431,15 @@
 }
 
 .vibex-content {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  background: var(--vibex-white-10);
+  border-radius: var(--vibex-radius);
   padding: 16px;
   backdrop-filter: blur(10px);
 }
 
 .vibex-loading {
   text-align: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--vibex-white-80);
   padding: 12px 0;
 }
 
@@ -53,13 +455,13 @@
   flex-direction: column;
   align-items: center;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--vibex-white-10);
   border-radius: 8px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--vibex-white-80);
   margin-bottom: 4px;
 }
 
@@ -71,7 +473,7 @@
 
 .vibex-tip {
   padding: 12px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--vibex-white-10);
   border-radius: 8px;
   font-size: 14px;
   color: white;
@@ -79,6 +481,25 @@
 
 .vibex-error {
   text-align: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--vibex-white-80);
   padding: 12px 0;
+}
+
+/* ==========================================
+   OVERLAY (for modal background)
+   ========================================== */
+.vibex-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  animation: vibex-fade 0.2s ease-out;
+}
+
+@keyframes vibex-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

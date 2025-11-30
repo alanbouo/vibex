@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Vibex</title>
+  <title>Vibex - X Data Collector</title>
   <style>
     * {
       margin: 0;
@@ -11,19 +11,17 @@
     }
 
     body {
-      width: 350px;
+      width: 380px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-
-    .container {
-      padding: 20px;
+      background: #f5f5f7;
+      color: #1a1a2e;
     }
 
     .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 24px 20px;
       text-align: center;
-      margin-bottom: 20px;
+      color: white;
     }
 
     .logo {
@@ -34,115 +32,290 @@
 
     h1 {
       font-size: 20px;
-      font-weight: 600;
+      font-weight: 700;
       margin-bottom: 4px;
     }
 
     .subtitle {
-      font-size: 14px;
+      font-size: 13px;
       opacity: 0.9;
     }
 
-    .stats {
-      background: rgba(255, 255, 255, 0.1);
+    .container {
+      padding: 20px;
+    }
+
+    .section {
+      background: white;
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 16px;
-      backdrop-filter: blur(10px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
 
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 12px;
     }
 
-    .stat-row:last-child {
-      border-bottom: none;
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
 
-    .stat-label {
-      font-size: 14px;
-      opacity: 0.9;
+    .stat-card {
+      background: #f5f5f7;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
     }
 
     .stat-value {
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 28px;
+      font-weight: 700;
+      color: #667eea;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #888;
+      margin-top: 6px;
+    }
+
+    .stat-updated {
+      font-size: 10px;
+      color: #aaa;
+      margin-top: 4px;
     }
 
     .actions {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
 
-    button {
-      background: white;
-      color: #667eea;
-      border: none;
-      padding: 12px 16px;
-      border-radius: 8px;
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-radius: 10px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s;
+      border: none;
+      transition: all 0.2s;
     }
 
-    button:hover {
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
       transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
 
-    button:active {
-      transform: translateY(0);
+    .btn-secondary {
+      background: #f0f0f5;
+      color: #1a1a2e;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e5ea;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-icon {
+      font-size: 16px;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .quick-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid #e5e5ea;
+      background: white;
+      color: #666;
+      transition: all 0.2s;
+    }
+
+    .quick-btn:hover {
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #e8f5e9;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #2e7d32;
+    }
+
+    .status-bar.warning {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .status-bar.error {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
     }
 
     .footer {
       text-align: center;
-      margin-top: 16px;
-      font-size: 12px;
-      opacity: 0.8;
+      padding: 16px 20px;
+      font-size: 11px;
+      color: #888;
+      border-top: 1px solid #eee;
     }
 
     .footer a {
-      color: white;
+      color: #667eea;
       text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .keyboard-hint {
+      font-size: 10px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    .sync-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .sync-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid #667eea;
+      background: white;
+      color: #667eea;
+      transition: all 0.2s;
+    }
+
+    .sync-btn:hover {
+      background: #667eea;
+      color: white;
     }
   </style>
 </head>
 <body>
+  <div class="header">
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Vibex</h1>
+    <p class="subtitle">Collect your X data without API limits</p>
+  </div>
+
   <div class="container">
-    <div class="header">
-      <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <h1>Vibex</h1>
-      <p class="subtitle">AI-powered Twitter growth</p>
-    </div>
-
-    <div class="stats">
-      <div class="stat-row">
-        <span class="stat-label">Usage Today</span>
-        <span class="stat-value" id="usageToday">0/10</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Current Plan</span>
-        <span class="stat-value" id="currentPlan">Free</span>
+    <!-- Status -->
+    <div class="section">
+      <div class="status-bar" id="statusBar">
+        <span class="status-dot"></span>
+        <span id="statusText">Ready to collect</span>
       </div>
     </div>
 
-    <div class="actions">
-      <button id="openDashboard">Open Dashboard</button>
-      <button id="generateTweet">Generate Tweet</button>
-      <button id="viewAnalytics">View Analytics</button>
+    <!-- Stats -->
+    <div class="section">
+      <div class="section-title">Collected Data</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="postsCount">0</div>
+          <div class="stat-label">Posts</div>
+          <div class="stat-updated" id="postsUpdated">Not collected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="likesCount">0</div>
+          <div class="stat-label">Likes</div>
+          <div class="stat-updated" id="likesUpdated">Not collected</div>
+        </div>
+      </div>
+      <div class="sync-info">
+        <span>Stored locally in browser</span>
+        <button class="sync-btn" id="syncBtn">Sync to Cloud</button>
+      </div>
     </div>
 
-    <div class="footer">
-      <p>Made with ❤️ by Vibex</p>
-      <a href="https://vibex.com" target="_blank">Learn More</a>
+    <!-- Actions -->
+    <div class="section">
+      <div class="section-title">Actions</div>
+      <div class="actions">
+        <div class="btn-row">
+          <button class="btn btn-primary" id="collectPosts">
+            <span class="btn-icon">📝</span> Collect Posts
+          </button>
+          <button class="btn btn-primary" id="collectLikes">
+            <span class="btn-icon">❤️</span> Collect Likes
+          </button>
+        </div>
+        <button class="btn btn-secondary" id="openWriter">
+          <span class="btn-icon">✨</span> AI Writing Assistant
+        </button>
+        <button class="btn btn-secondary" id="exportData">
+          <span class="btn-icon">📥</span> Export Data (JSON)
+        </button>
+      </div>
+      <div class="quick-actions">
+        <button class="quick-btn" id="openDashboard">📊 Dashboard</button>
+        <button class="quick-btn" id="clearData">🗑️ Clear Data</button>
+        <button class="quick-btn" id="openSettings">⚙️ Settings</button>
+      </div>
+      <p class="keyboard-hint">Tip: Use ⌘+Shift+P to collect, ⌘+Shift+W for AI Writer</p>
     </div>
+  </div>
+
+  <div class="footer">
+    <p>Vibex v2.0 • <a href="#" id="helpLink">Help</a> • <a href="#" id="feedbackLink">Feedback</a></p>
   </div>
 
   <script src="popup.js"></script>
