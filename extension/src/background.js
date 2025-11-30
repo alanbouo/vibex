@@ -227,23 +227,38 @@ function handleDataCollected(type, count) {
 async function syncDataToBackend(data) {
   const token = await getAuthToken();
   if (!token) {
-    throw new Error('Not authenticated');
+    throw new Error('Not authenticated. Please log in to the Vibex dashboard first.');
   }
 
-  const response = await fetch(`${API_URL}/data/sync`, {
+  // Use the new import-extension-data endpoint
+  const response = await fetch(`${API_URL}/profiles/import-extension-data`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify(data)
+    body: JSON.stringify({
+      posts: data.posts || [],
+      likes: data.likes || []
+    })
   });
 
   if (!response.ok) {
-    throw new Error('Failed to sync data');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to sync data');
   }
 
-  return await response.json();
+  const result = await response.json();
+  
+  // Show success notification
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/icon48.png',
+    title: 'Vibex Sync Complete',
+    message: `Imported ${result.data?.postsImported || 0} posts and ${result.data?.likesImported || 0} likes!`
+  });
+
+  return result;
 }
 
 async function getStorageStats() {

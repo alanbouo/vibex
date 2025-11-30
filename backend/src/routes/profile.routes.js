@@ -6,6 +6,7 @@ import {
   analyzeProfile,
   importLikes,
   importStyle,
+  importExtensionData,
   getStyleProfile,
   generateReplies,
   generateQuotes,
@@ -26,6 +27,9 @@ router.get('/twitter-insights', getTwitterInsights);
 // Style import & profile (uses 2 API calls once, then 0)
 router.post('/import-style', importStyle);
 router.get('/style', getStyleProfile);
+
+// Extension data import (0 API calls - uses scraped data!)
+router.post('/import-extension-data', importExtensionData);
 
 // Content generation (0 API calls - uses stored style)
 router.post('/generate-replies', generateReplies);

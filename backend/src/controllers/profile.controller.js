@@ -345,3 +345,110 @@ export const importLikes = asyncHandler(async (req, res, next) => {
   // Redirect to new import-style endpoint
   return next(new AppError('This endpoint is deprecated. Use POST /api/profiles/import-style instead.', 410));
 });
+
+/**
+ * @desc    Import scraped data from Chrome extension (NO API CALLS!)
+ * @route   POST /api/profiles/import-extension-data
+ * @access  Private
+ * @note    This uses data scraped by the extension, not the Twitter API
+ */
+export const importExtensionData = asyncHandler(async (req, res, next) => {
+  const { posts, likes } = req.body;
+
+  if (!posts && !likes) {
+    return next(new AppError('No data provided. Include posts and/or likes arrays.', 400));
+  }
+
+  const postsArray = posts || [];
+  const likesArray = likes || [];
+
+  if (postsArray.length === 0 && likesArray.length === 0) {
+    return next(new AppError('Both posts and likes arrays are empty.', 400));
+  }
+
+  // Format posts for storage
+  const formattedPosts = postsArray.map(p => ({
+    id: p.id,
+    content: p.text || '',
+    author: p.handle ? `@${p.handle}` : '',
+    authorName: p.author || '',
+    url: p.url || '',
+    type: p.type || 'original',
+    hasMedia: p.hasMedia || false,
+    mediaTypes: p.mediaTypes || [],
+    metrics: {
+      reply_count: p.replies || 0,
+      retweet_count: p.retweets || 0,
+      like_count: p.likes || 0,
+      impression_count: p.views || 0
+    },
+    createdAt: p.timestamp || null,
+    scrapedAt: p.scrapedAt || new Date().toISOString(),
+    importedAt: new Date()
+  }));
+
+  // Format likes for storage
+  const formattedLikes = likesArray.map(l => ({
+    id: l.id,
+    content: l.text || '',
+    author: l.handle ? `@${l.handle}` : '',
+    authorName: l.author || '',
+    url: l.url || '',
+    type: l.type || 'original',
+    hasMedia: l.hasMedia || false,
+    mediaTypes: l.mediaTypes || [],
+    metrics: {
+      reply_count: l.replies || 0,
+      retweet_count: l.retweets || 0,
+      like_count: l.likes || 0,
+      impression_count: l.views || 0
+    },
+    createdAt: l.timestamp || null,
+    scrapedAt: l.scrapedAt || new Date().toISOString(),
+    importedAt: new Date()
+  }));
+
+  // Store in user record (merge with existing data, avoid duplicates)
+  const existingPostIds = new Set((req.user.importedTweets || []).map(t => t.id));
+  const existingLikeIds = new Set((req.user.importedLikes || []).map(l => l.id));
+
+  const newPosts = formattedPosts.filter(p => !existingPostIds.has(p.id));
+  const newLikes = formattedLikes.filter(l => !existingLikeIds.has(l.id));
+
+  req.user.importedTweets = [...(req.user.importedTweets || []), ...newPosts];
+  req.user.importedLikes = [...(req.user.importedLikes || []), ...newLikes];
+  req.user.extensionDataImportedAt = new Date();
+
+  // Analyze style if we have enough data
+  let styleProfile = req.user.styleProfile;
+  const totalPosts = req.user.importedTweets.length;
+  const totalLikes = req.user.importedLikes.length;
+
+  if (totalPosts >= 10 || totalLikes >= 20) {
+    try {
+      styleProfile = await aiService.analyzeStyle(
+        req.user.importedTweets.slice(0, 100).map(t => ({ content: t.content })),
+        req.user.importedLikes.slice(0, 100).map(l => ({ content: l.content }))
+      );
+      req.user.styleProfile = styleProfile;
+    } catch (error) {
+      console.error('Style analysis failed:', error.message);
+      // Continue without style analysis
+    }
+  }
+
+  await req.user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Extension data imported successfully!',
+    data: {
+      postsImported: newPosts.length,
+      likesImported: newLikes.length,
+      totalPosts,
+      totalLikes,
+      styleAnalyzed: !!styleProfile?.analyzedAt,
+      apiCallsUsed: 0 // No Twitter API calls!
+    }
+  });
+});
