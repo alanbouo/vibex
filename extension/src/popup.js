@@ -1,7 +1,8 @@
 // Popup script for Vibex extension v2.0
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Load stats on popup open
+  // Check auth status and load stats
+  checkAuthStatus();
   loadStats();
   
   // ==========================================
@@ -87,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   document.getElementById('openSettings').addEventListener('click', () => {
-    chrome.tabs.create({ url: 'http://localhost:3000/settings' });
+    chrome.tabs.create({ url: 'https://vibex.alanbouo.com/settings' });
   });
   
   document.getElementById('syncBtn').addEventListener('click', async () => {
@@ -115,6 +116,31 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('feedbackLink').addEventListener('click', (e) => {
     e.preventDefault();
     chrome.tabs.create({ url: 'https://github.com/vibex/feedback' });
+  });
+
+  // ==========================================
+  // ACCOUNT CONNECTION
+  // ==========================================
+  
+  document.getElementById('connectBtn').addEventListener('click', () => {
+    setStatus('warning', 'Connecting...');
+    chrome.runtime.sendMessage({ action: 'connectAccount' }, (response) => {
+      if (response.success) {
+        showConnectedState(response.user);
+        setStatus('success', 'Connected to Vibex!');
+      } else if (response.needsLogin) {
+        setStatus('warning', response.message);
+      } else {
+        setStatus('error', response.error || 'Connection failed');
+      }
+    });
+  });
+
+  document.getElementById('disconnectBtn').addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'disconnectAccount' }, () => {
+      showDisconnectedState();
+      setStatus('success', 'Disconnected from Vibex');
+    });
   });
 });
 
@@ -220,4 +246,32 @@ async function exportFromStorage() {
     filename: `vibex-export-${new Date().toISOString().split('T')[0]}.json`,
     saveAs: true
   });
+}
+
+// ==========================================
+// AUTH FUNCTIONS
+// ==========================================
+
+function checkAuthStatus() {
+  chrome.runtime.sendMessage({ action: 'checkAuth' }, (response) => {
+    if (response && response.authenticated) {
+      showConnectedState(response.user);
+    } else {
+      showDisconnectedState();
+    }
+  });
+}
+
+function showConnectedState(user) {
+  document.getElementById('accountNotConnected').style.display = 'none';
+  document.getElementById('accountConnected').style.display = 'block';
+  document.getElementById('userName').textContent = user?.name || 'Connected';
+  document.getElementById('userEmail').textContent = user?.email || '';
+  document.getElementById('syncBtn').disabled = false;
+}
+
+function showDisconnectedState() {
+  document.getElementById('accountNotConnected').style.display = 'block';
+  document.getElementById('accountConnected').style.display = 'none';
+  document.getElementById('syncBtn').disabled = true;
 }

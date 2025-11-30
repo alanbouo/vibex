@@ -257,6 +257,28 @@
   </div>
 
   <div class="container">
+    <!-- Account Connection -->
+    <div class="section" id="accountSection">
+      <div class="section-title">Account</div>
+      <div id="accountNotConnected" class="account-status">
+        <p style="font-size: 13px; color: #666; margin-bottom: 12px;">
+          Connect to sync your data with Vibex
+        </p>
+        <button class="btn btn-primary" id="connectBtn" style="width: 100%;">
+          <span class="btn-icon">🔗</span> Connect to Vibex
+        </button>
+      </div>
+      <div id="accountConnected" class="account-status" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-weight: 600; color: #1a1a2e;" id="userName">Connected</div>
+            <div style="font-size: 12px; color: #888;" id="userEmail"></div>
+          </div>
+          <button class="quick-btn" id="disconnectBtn" style="flex: none;">Disconnect</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Status -->
     <div class="section">
       <div class="status-bar" id="statusBar">

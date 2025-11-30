@@ -1,8 +1,13 @@
 // Background service worker for Vibex extension v2.0
 // Handles AI generation, data sync, and communication
 
-const API_URL = 'http://localhost:5000/api';
-const DASHBOARD_URL = 'http://localhost:3000';
+// Production URLs
+const API_URL = 'https://vibex.alanbouo.com/api';
+const DASHBOARD_URL = 'https://vibex.alanbouo.com';
+
+// Development URLs (uncomment for local dev)
+// const API_URL = 'http://localhost:5000/api';
+// const DASHBOARD_URL = 'http://localhost:3000';
 
 // ==========================================
 // INSTALLATION & SETUP
@@ -84,8 +89,75 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .then(stats => sendResponse({ success: true, stats }))
         .catch(error => sendResponse({ success: false, error: error.message }));
       return true;
+
+    case 'checkAuth':
+      checkAuthStatus()
+        .then(status => sendResponse({ success: true, ...status }))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+
+    case 'connectAccount':
+      connectToVibex()
+        .then(result => sendResponse(result))
+        .catch(error => sendResponse({ success: false, error: error.message }));
+      return true;
+
+    case 'disconnectAccount':
+      clearAuthToken();
+      sendResponse({ success: true });
+      break;
   }
 });
+
+// Check if user is authenticated
+async function checkAuthStatus() {
+  const token = await getAuthToken();
+  if (!token) {
+    return { authenticated: false };
+  }
+  
+  // Verify token is still valid
+  try {
+    const response = await fetch(`${API_URL}/users/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return { 
+        authenticated: true, 
+        user: data.data?.user || data.user 
+      };
+    } else {
+      clearAuthToken();
+      return { authenticated: false };
+    }
+  } catch (error) {
+    return { authenticated: false, error: error.message };
+  }
+}
+
+// Connect to Vibex by fetching token from dashboard
+async function connectToVibex() {
+  // First try to get token from an open dashboard tab
+  const token = await fetchTokenFromDashboard();
+  
+  if (token) {
+    // Verify the token works
+    const status = await checkAuthStatus();
+    if (status.authenticated) {
+      return { success: true, user: status.user };
+    }
+  }
+  
+  // If no token found, open dashboard for login
+  chrome.tabs.create({ url: `${DASHBOARD_URL}/login?extension=true` });
+  return { 
+    success: false, 
+    needsLogin: true,
+    message: 'Please log in to Vibex, then click Connect again.'
+  };
+}
 
 // ==========================================
 // AI POST GENERATION
@@ -292,6 +364,30 @@ function saveAuthToken(token) {
 
 function clearAuthToken() {
   chrome.storage.local.remove(['authToken']);
+}
+
+// Try to get token from Vibex dashboard cookies/localStorage
+async function fetchTokenFromDashboard() {
+  try {
+    // Execute script in dashboard tab to get token
+    const tabs = await chrome.tabs.query({ url: `${DASHBOARD_URL}/*` });
+    
+    if (tabs.length > 0) {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: () => localStorage.getItem('token')
+      });
+      
+      if (results[0]?.result) {
+        saveAuthToken(results[0].result);
+        return results[0].result;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch token from dashboard:', error);
+    return null;
+  }
 }
 
 // ==========================================
