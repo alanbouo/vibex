@@ -93,7 +93,8 @@ function scrapeTweets() {
   tweets.forEach((tweet, index) => {
     try {
       const data = extractTweetData(tweet);
-      if (data && data.text) {
+      // Accept posts with ID (even without text - for media-only posts, retweets, etc.)
+      if (data && data.id) {
         scrapedData.push(data);
       }
     } catch (error) {
@@ -105,17 +106,32 @@ function scrapeTweets() {
 }
 
 function extractTweetData(tweetElement) {
-  // Get tweet text
+  // Get tweet text (may be empty for media-only posts)
   const textElement = tweetElement.querySelector(CONFIG.selectors.tweetText);
   const text = textElement ? textElement.innerText : '';
   
-  // Get tweet link/ID
-  const linkElement = tweetElement.querySelector(CONFIG.selectors.tweetLink);
-  const tweetUrl = linkElement ? linkElement.href : '';
-  const tweetId = tweetUrl ? tweetUrl.split('/status/')[1]?.split('?')[0] : '';
+  // Get tweet link/ID - try multiple selectors
+  let tweetUrl = '';
+  let tweetId = '';
+  
+  // Method 1: Direct status link
+  const linkElement = tweetElement.querySelector('a[href*="/status/"]');
+  if (linkElement) {
+    tweetUrl = linkElement.href;
+    tweetId = tweetUrl.split('/status/')[1]?.split('?')[0]?.split('/')[0] || '';
+  }
+  
+  // Method 2: From time element's parent link
+  if (!tweetId) {
+    const timeLink = tweetElement.querySelector('time')?.closest('a');
+    if (timeLink && timeLink.href.includes('/status/')) {
+      tweetUrl = timeLink.href;
+      tweetId = tweetUrl.split('/status/')[1]?.split('?')[0]?.split('/')[0] || '';
+    }
+  }
   
   // Get timestamp
-  const timeElement = tweetElement.querySelector(CONFIG.selectors.tweetTime);
+  const timeElement = tweetElement.querySelector('time');
   const timestamp = timeElement ? timeElement.getAttribute('datetime') : '';
   const displayTime = timeElement ? timeElement.innerText : '';
   
@@ -125,15 +141,63 @@ function extractTweetData(tweetElement) {
   // Get author info
   const authorInfo = extractAuthorInfo(tweetElement);
   
+  // Detect post type
+  const postType = detectPostType(tweetElement);
+  
+  // Get media info
+  const mediaInfo = extractMediaInfo(tweetElement);
+  
   return {
     id: tweetId,
     text: text,
     url: tweetUrl,
     timestamp: timestamp,
     displayTime: displayTime,
+    type: postType,
+    ...mediaInfo,
     ...metrics,
     ...authorInfo,
     scrapedAt: new Date().toISOString()
+  };
+}
+
+function detectPostType(tweetElement) {
+  // Check if it's a retweet
+  const socialContext = tweetElement.querySelector('[data-testid="socialContext"]');
+  if (socialContext && socialContext.textContent.includes('reposted')) {
+    return 'retweet';
+  }
+  
+  // Check if it's a quote tweet
+  const quoteTweet = tweetElement.querySelector('[data-testid="quoteTweet"]');
+  if (quoteTweet) {
+    return 'quote';
+  }
+  
+  // Check if it's a reply
+  const replyContext = tweetElement.querySelector('div[data-testid="tweet"] > div > div > div > span');
+  if (replyContext && replyContext.textContent.includes('Replying to')) {
+    return 'reply';
+  }
+  
+  return 'original';
+}
+
+function extractMediaInfo(tweetElement) {
+  const hasImage = tweetElement.querySelector('[data-testid="tweetPhoto"]') !== null;
+  const hasVideo = tweetElement.querySelector('[data-testid="videoPlayer"]') !== null;
+  const hasCard = tweetElement.querySelector('[data-testid="card.wrapper"]') !== null;
+  const hasPoll = tweetElement.querySelector('[data-testid="cardPoll"]') !== null;
+  
+  const mediaTypes = [];
+  if (hasImage) mediaTypes.push('image');
+  if (hasVideo) mediaTypes.push('video');
+  if (hasCard) mediaTypes.push('card');
+  if (hasPoll) mediaTypes.push('poll');
+  
+  return {
+    hasMedia: mediaTypes.length > 0,
+    mediaTypes: mediaTypes
   };
 }
 
@@ -182,11 +246,12 @@ async function collectAllPosts(type = 'posts') {
   const collection = type === 'likes' ? collectedLikes : collectedPosts;
   const seenIds = new Set(collection.map(p => p.id));
   let noNewPostsCount = 0;
-  const maxNoNewPosts = 5;
+  let lastScrollHeight = 0;
+  let stuckCount = 0;
   
   updateCollectorStatus(`Collecting ${type}... (0 collected)`);
   
-  while (isCollecting && noNewPostsCount < maxNoNewPosts) {
+  while (isCollecting) {
     const tweets = scrapeTweets();
     let newCount = 0;
     
@@ -204,13 +269,36 @@ async function collectAllPosts(type = 'posts') {
       noNewPostsCount = 0;
     }
     
+    // Check if page is still loading new content
+    const currentScrollHeight = document.documentElement.scrollHeight;
+    const atBottom = (window.innerHeight + window.scrollY) >= currentScrollHeight - 100;
+    
+    if (currentScrollHeight === lastScrollHeight && atBottom) {
+      stuckCount++;
+    } else {
+      stuckCount = 0;
+      lastScrollHeight = currentScrollHeight;
+    }
+    
     updateCollectorStatus(`Collecting ${type}... (${collection.length} collected)`);
+    
+    // Stop only if we're truly at the end:
+    // - No new posts for 10+ scrolls AND page height hasn't changed for 5+ scrolls
+    if (noNewPostsCount >= 10 && stuckCount >= 5) {
+      break;
+    }
     
     // Scroll down
     window.scrollBy(0, window.innerHeight * 0.8);
     
-    // Wait for content to load
-    await sleep(1500);
+    // Wait for content to load (longer wait for likes which load slower)
+    await sleep(type === 'likes' ? 2000 : 1500);
+    
+    // Every 50 items, do a longer pause to let X catch up
+    if (collection.length % 50 === 0 && collection.length > 0) {
+      updateCollectorStatus(`Collecting ${type}... (${collection.length} collected) - pausing...`);
+      await sleep(1000);
+    }
   }
   
   isCollecting = false;
