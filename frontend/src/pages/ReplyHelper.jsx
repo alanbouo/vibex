@@ -24,6 +24,7 @@ const ReplyHelper = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('replies');
   const [styleProfile, setStyleProfile] = useState(null);
+  const [importedCounts, setImportedCounts] = useState({ tweets: 0, likes: 0 });
   const [styleLoading, setStyleLoading] = useState(true);
   const [importLoading, setImportLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -39,6 +40,10 @@ const ReplyHelper = () => {
       const response = await profileAPI.getStyleProfile();
       if (response.data.data.hasStyle) {
         setStyleProfile(response.data.data.styleProfile);
+        setImportedCounts({
+          tweets: response.data.data.tweetsCount || 0,
+          likes: response.data.data.likesCount || 0
+        });
       }
     } catch (error) {
       console.error('Failed to load style profile:', error);
@@ -182,7 +187,7 @@ const ReplyHelper = () => {
 
               <div className="flex items-center justify-between pt-2 border-t">
                 <p className="text-xs text-gray-500">
-                  Analyzed {styleProfile.tweetCount} tweets & {styleProfile.likesCount} likes
+                  Imported {importedCounts.tweets} tweets & {importedCounts.likes} likes
                 </p>
                 <Button 
                   variant="outline" 

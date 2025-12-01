@@ -114,7 +114,9 @@ export const getMe = asyncHandler(async (req, res, next) => {
         subscription: user.subscription,
         twitterAccount: user.twitterAccount,
         preferences: user.preferences,
-        usage: user.usage
+        usage: user.usage,
+        importedTweetsCount: (user.importedTweets || []).length,
+        importedLikesCount: (user.importedLikes || []).length
       }
     }
   });
