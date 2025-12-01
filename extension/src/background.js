@@ -2,7 +2,7 @@
 // Handles AI generation, data sync, and communication
 
 // Production URLs
-const API_URL = 'https://vibex.alanbouo.com/api';
+const API_URL = 'https://api.vibex.alanbouo.com/api';
 const DASHBOARD_URL = 'https://vibex.alanbouo.com';
 
 // Development URLs (uncomment for local dev)
@@ -116,23 +116,33 @@ async function checkAuthStatus() {
     return { authenticated: false };
   }
   
+  // First check if we have cached user info
+  const cachedUser = await getUserInfo();
+  
   // Verify token is still valid
   try {
-    const response = await fetch(`${API_URL}/users/me`, {
+    const response = await fetch(`${API_URL}/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
     if (response.ok) {
       const data = await response.json();
+      const user = data.data?.user || data.user;
+      if (user) saveUserInfo(user);
       return { 
         authenticated: true, 
-        user: data.data?.user || data.user 
+        user: user || cachedUser
       };
     } else {
       clearAuthToken();
+      chrome.storage.local.remove(['userInfo']);
       return { authenticated: false };
     }
   } catch (error) {
+    // If API is unreachable but we have a token and cached user, assume still authenticated
+    if (cachedUser) {
+      return { authenticated: true, user: cachedUser };
+    }
     return { authenticated: false, error: error.message };
   }
 }
@@ -140,18 +150,18 @@ async function checkAuthStatus() {
 // Connect to Vibex by fetching token from dashboard
 async function connectToVibex() {
   // First try to get token from an open dashboard tab
-  const token = await fetchTokenFromDashboard();
+  const result = await fetchTokenFromDashboard();
   
-  if (token) {
+  if (result && result.token) {
     // Verify the token works
     const status = await checkAuthStatus();
     if (status.authenticated) {
-      return { success: true, user: status.user };
+      return { success: true, user: result.user || status.user };
     }
   }
   
   // If no token found, open dashboard for login
-  chrome.tabs.create({ url: `${DASHBOARD_URL}/login?extension=true` });
+  chrome.tabs.create({ url: `${DASHBOARD_URL}/login` });
   return { 
     success: false, 
     needsLogin: true,
@@ -366,20 +376,35 @@ function clearAuthToken() {
   chrome.storage.local.remove(['authToken']);
 }
 
-// Try to get token from Vibex dashboard cookies/localStorage
+// Try to get token from Vibex dashboard localStorage (Zustand persist)
 async function fetchTokenFromDashboard() {
   try {
-    // Execute script in dashboard tab to get token
+    // Execute script in dashboard tab to get token from Zustand auth-storage
     const tabs = await chrome.tabs.query({ url: `${DASHBOARD_URL}/*` });
     
     if (tabs.length > 0) {
       const results = await chrome.scripting.executeScript({
         target: { tabId: tabs[0].id },
-        func: () => localStorage.getItem('token')
+        func: () => {
+          const authStorage = localStorage.getItem('auth-storage');
+          if (authStorage) {
+            try {
+              const parsed = JSON.parse(authStorage);
+              return {
+                token: parsed.state?.token,
+                user: parsed.state?.user
+              };
+            } catch (e) {
+              return null;
+            }
+          }
+          return null;
+        }
       });
       
-      if (results[0]?.result) {
-        saveAuthToken(results[0].result);
+      if (results[0]?.result?.token) {
+        saveAuthToken(results[0].result.token);
+        saveUserInfo(results[0].result.user);
         return results[0].result;
       }
     }
@@ -388,6 +413,20 @@ async function fetchTokenFromDashboard() {
     console.error('Failed to fetch token from dashboard:', error);
     return null;
   }
+}
+
+function saveUserInfo(user) {
+  if (user) {
+    chrome.storage.local.set({ userInfo: user });
+  }
+}
+
+async function getUserInfo() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['userInfo'], (result) => {
+      resolve(result.userInfo || null);
+    });
+  });
 }
 
 // ==========================================

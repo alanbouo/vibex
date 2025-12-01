@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAuthStatus();
   loadStats();
   
+  // Re-check auth when popup regains focus (user might have just logged in)
+  window.addEventListener('focus', () => {
+    checkAuthStatus();
+  });
+  
   // ==========================================
   // MAIN ACTIONS
   // ==========================================
