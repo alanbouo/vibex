@@ -260,22 +260,24 @@ export const getStyleProfile = asyncHandler(async (req, res, next) => {
  * @route   POST /api/profiles/generate-replies
  * @access  Private
  * @note    No Twitter API calls - uses stored style profile
+ * @note    Supports image upload (base64) for vision-based reply generation
  */
 export const generateReplies = asyncHandler(async (req, res, next) => {
-  const { tweetContent, count = 3 } = req.body;
+  const { tweetContent, count = 3, image } = req.body;
 
-  if (!tweetContent) {
-    return next(new AppError('Tweet content is required', 400));
+  if (!tweetContent && !image) {
+    return next(new AppError('Tweet content or image is required', 400));
   }
 
   const styleProfile = req.user.styleProfile || null;
-  const replies = await aiService.generateReplies(tweetContent, styleProfile, count);
+  const replies = await aiService.generateReplies(tweetContent, styleProfile, count, image);
 
   res.status(200).json({
     status: 'success',
     data: {
       replies,
-      usedStyle: !!styleProfile
+      usedStyle: !!styleProfile,
+      usedImage: !!image
     }
   });
 });

@@ -12,7 +12,10 @@ import {
   RefreshCw,
   AlertCircle,
   Zap,
-  Download
+  Download,
+  Image,
+  X,
+  Upload
 } from 'lucide-react';
 import { profileAPI } from '../services/api';
 
@@ -28,6 +31,9 @@ const ReplyHelper = () => {
   const [styleLoading, setStyleLoading] = useState(true);
   const [importLoading, setImportLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Load style profile on mount
   useEffect(() => {
@@ -78,8 +84,8 @@ const ReplyHelper = () => {
   };
 
   const handleGenerateReplies = async () => {
-    if (!tweetContent.trim()) {
-      toast.error('Please paste a tweet to reply to');
+    if (!tweetContent.trim() && !uploadedImage) {
+      toast.error('Please paste a tweet or upload an image');
       return;
     }
 
@@ -87,10 +93,14 @@ const ReplyHelper = () => {
     try {
       const response = await profileAPI.generateReplies({ 
         tweetContent: tweetContent.trim(),
-        count: 3 
+        count: 3,
+        image: uploadedImage
       });
       setReplies(response.data.data.replies);
       setActiveTab('replies');
+      if (response.data.data.usedImage) {
+        toast.success('Generated replies from image!');
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to generate replies');
     } finally {
@@ -124,6 +134,54 @@ const ReplyHelper = () => {
     setCopiedIndex(index);
     toast.success('Copied to clipboard!');
     setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const handleImageUpload = (file) => {
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('Image must be less than 10MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setUploadedImage(e.target.result);
+      setImagePreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    handleImageUpload(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    handleImageUpload(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const removeImage = () => {
+    setUploadedImage(null);
+    setImagePreview(null);
   };
 
   const suggestions = activeTab === 'replies' ? replies : quotes;
@@ -221,15 +279,72 @@ const ReplyHelper = () => {
       {/* Tweet Input */}
       <Card>
         <CardHeader>
-          <CardTitle>Tweet to Respond To</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Tweet to Respond To
+            <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              Text or Image
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <textarea
             value={tweetContent}
             onChange={(e) => setTweetContent(e.target.value)}
-            placeholder="Paste the tweet you want to reply to or quote..."
-            className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Paste the tweet text you want to reply to or quote..."
+            className="w-full h-24 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+
+          {/* Image Upload Area */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            className={`relative border-2 border-dashed rounded-lg transition-colors ${
+              isDragging 
+                ? 'border-blue-500 bg-blue-50' 
+                : imagePreview 
+                  ? 'border-green-300 bg-green-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            {imagePreview ? (
+              <div className="p-4">
+                <div className="relative inline-block">
+                  <img 
+                    src={imagePreview} 
+                    alt="Tweet screenshot" 
+                    className="max-h-48 rounded-lg shadow-sm"
+                  />
+                  <button
+                    onClick={removeImage}
+                    className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                  <Check className="w-4 h-4" />
+                  Image ready for analysis
+                </p>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileInputChange}
+                  className="hidden"
+                />
+                <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium text-blue-600">Upload screenshot</span> or drag and drop
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  PNG, JPG up to 10MB
+                </p>
+              </label>
+            )}
+          </div>
           
           <div className="flex gap-3">
             <Button 

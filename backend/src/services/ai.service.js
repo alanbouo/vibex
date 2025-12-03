@@ -435,8 +435,12 @@ Write content that sounds authentically like them - use their vocabulary, match 
 
   /**
    * Generate reply suggestions for a tweet
+   * @param {string} tweetContent - The tweet text to reply to
+   * @param {Object} styleProfile - User's writing style profile
+   * @param {number} count - Number of replies to generate
+   * @param {string} imageBase64 - Optional base64 encoded image of the tweet
    */
-  async generateReplies(tweetContent, styleProfile, count = 3) {
+  async generateReplies(tweetContent, styleProfile, count = 3, imageBase64 = null) {
     try {
       const styleContext = styleProfile ? `
 Match this writing style:
@@ -449,7 +453,35 @@ Match this writing style:
 ${styleContext}
 Each reply should be under 280 characters. Make them conversational and add value to the discussion.`;
 
-      const userPrompt = `Generate ${count} reply options for this tweet:
+      let userContent;
+      
+      if (imageBase64) {
+        // Use vision model with image
+        const imagePrompt = tweetContent 
+          ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"\n\nGenerate ${count} reply options that:
+1. Add value or insight to what's shown in the image
+2. Are engaging and likely to start conversation
+3. Sound natural, not generic`
+          : `Look at this screenshot of a tweet. Generate ${count} reply options that:
+1. Add value or insight to what's shown in the image
+2. Are engaging and likely to start conversation
+3. Sound natural, not generic`;
+
+        userContent = [
+          {
+            type: 'text',
+            text: imagePrompt
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+              detail: 'high'
+            }
+          }
+        ];
+      } else {
+        userContent = `Generate ${count} reply options for this tweet:
 
 "${tweetContent}"
 
@@ -457,12 +489,13 @@ Provide replies that:
 1. Add value or insight
 2. Are engaging and likely to start conversation
 3. Sound natural, not generic`;
+      }
 
       const response = await this.getOpenAI().chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: imageBase64 ? 'gpt-4o' : 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: userContent }
         ],
         temperature: 0.8,
         max_tokens: 400,
