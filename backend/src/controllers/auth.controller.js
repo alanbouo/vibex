@@ -87,7 +87,7 @@ export const login = asyncHandler(async (req, res, next) => {
         name: user.name,
         avatar: user.avatar,
         subscription: user.subscription,
-        twitterConnected: user.twitterAccount.connected
+        extensionConnected: !!user.extensionDataImportedAt
       },
       accessToken,
       refreshToken
@@ -112,11 +112,12 @@ export const getMe = asyncHandler(async (req, res, next) => {
         name: user.name,
         avatar: user.avatar,
         subscription: user.subscription,
-        twitterAccount: user.twitterAccount,
         preferences: user.preferences,
         usage: user.usage,
         importedTweetsCount: (user.importedTweets || []).length,
-        importedLikesCount: (user.importedLikes || []).length
+        importedLikesCount: (user.importedLikes || []).length,
+        extensionDataImportedAt: user.extensionDataImportedAt,
+        hasStyleProfile: !!user.styleProfile?.analyzedAt
       }
     }
   });

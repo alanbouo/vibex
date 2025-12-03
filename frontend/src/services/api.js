@@ -98,16 +98,12 @@ export const analyticsAPI = {
   getContentPerformance: () => api.get('/analytics/content-performance'),
 };
 
-// Profile API
+// Profile API (Extension-based, no Twitter API)
 export const profileAPI = {
-  connectTwitter: (data) => api.post('/profiles/connect-twitter', data),
-  disconnectTwitter: () => api.post('/profiles/disconnect-twitter'),
-  getTwitterInsights: () => api.get('/profiles/twitter-insights'),
-  analyzeProfile: (data) => api.post('/profiles/analyze', data),
-  importLikes: () => api.post('/profiles/import-likes'),
+  // Extension data import
+  importExtensionData: (data) => api.post('/profiles/import-extension-data', data),
   
-  // Style import & generation (new)
-  importStyle: () => api.post('/profiles/import-style'),
+  // Style profile & generation
   getStyleProfile: () => api.get('/profiles/style'),
   generateReplies: (data) => api.post('/profiles/generate-replies', data),
   generateQuotes: (data) => api.post('/profiles/generate-quotes', data),

@@ -1,65 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
-import { Twitter, CheckCircle, AlertCircle, Heart, Sparkles, RefreshCw } from 'lucide-react';
-import api, { profileAPI, analyticsAPI } from '../services/api';
+import { CheckCircle, AlertCircle, Chrome, Download, ExternalLink } from 'lucide-react';
 
 const Settings = () => {
-  const { user, updateUser } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('twitter');
-  const [loading, setLoading] = useState(false);
-  const [twitterHandle, setTwitterHandle] = useState('');
-
-  // Handle Twitter OAuth callback
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const twitterConnected = urlParams.get('twitter_connected');
-    const twitterError = urlParams.get('twitter_error');
-    const accessToken = urlParams.get('twitter_access_token');
-    const refreshToken = urlParams.get('twitter_refresh_token');
-    const userId = urlParams.get('twitter_user_id');
-    const username = urlParams.get('twitter_username');
-    const expiresIn = urlParams.get('twitter_expires_in');
-
-    console.log('Twitter OAuth Params:', { twitterConnected, username, userId });
-
-    if (twitterConnected === 'true' && accessToken && username) {
-      console.log('Processing Twitter connection...');
-      // Calculate expiration date
-      const expiresAt = new Date(Date.now() + parseInt(expiresIn) * 1000).toISOString();
-
-      // Save Twitter connection
-      profileAPI.connectTwitter({
-        accessToken,
-        refreshToken,
-        userId,
-        username,
-        expiresAt
-      })
-        .then(() => {
-          console.log('Twitter connection saved to backend');
-          updateUser({ 
-            twitterConnected: true, 
-            twitterAccount: { username, userId } 
-          });
-          console.log('User state updated');
-          toast.success(`X account @${username} connected successfully!`);
-        })
-        .catch((error) => {
-          console.error('Failed to save connection:', error);
-          toast.error('Failed to save Twitter connection');
-        })
-        .finally(() => {
-          // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        });
-    } else if (twitterError) {
-      toast.error(`Twitter connection failed: ${twitterError}`);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [updateUser]);
+  const { user } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('extension');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -69,7 +17,7 @@ const Settings = () => {
       </div>
 
       <div className="flex space-x-1 border-b border-gray-200">
-        {['profile', 'twitter', 'preferences', 'subscription'].map((tab) => (
+        {['profile', 'extension', 'subscription'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -79,7 +27,7 @@ const Settings = () => {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            {tab}
+            {tab === 'extension' ? 'Chrome Extension' : tab}
           </button>
         ))}
       </div>
@@ -112,226 +60,91 @@ const Settings = () => {
         </Card>
       )}
 
-      {activeTab === 'twitter' && (
+      {activeTab === 'extension' && (
         <Card>
           <CardHeader>
-            <CardTitle>X (Twitter) Connection</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Chrome className="w-5 h-5" />
+              Chrome Extension
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {user?.twitterConnected ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <div>
-                      <p className="font-medium text-green-900">Connected</p>
-                      <p className="text-sm text-green-700">@{user?.twitterAccount?.username}</p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={async () => {
-                      try {
-                        await profileAPI.disconnectTwitter();
-                        updateUser({ twitterConnected: false, twitterAccount: null });
-                        toast.success('X account disconnected');
-                      } catch (error) {
-                        toast.error('Failed to disconnect');
-                      }
-                    }}
-                  >
-                    Disconnect
-                  </Button>
-                </div>
-
-                {/* Sync Analytics Section - Disabled to save API quota */}
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg opacity-60">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-sm font-medium text-gray-700 mb-1">Sync Analytics</h3>
-                      <p className="text-sm text-gray-500">
-                        Analytics sync is disabled to conserve API quota. 
-                        Use the <strong>Reply Helper</strong> to grow your audience instead!
-                      </p>
-                      <p className="text-xs text-amber-600 mt-2">
-                        ⚠️ Free tier: 100 reads/month. Focus on creating content, not checking stats.
-                      </p>
-                    </div>
-                    <Button 
-                      disabled
-                      variant="outline"
-                      className="ml-4 cursor-not-allowed"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Disabled
-                    </Button>
+            {/* Extension Status */}
+            {user?.extensionDataImportedAt ? (
+              <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="font-medium text-green-900">Extension Connected</p>
+                    <p className="text-sm text-green-700">
+                      {user?.importedTweetsCount || 0} posts & {user?.importedLikesCount || 0} likes imported
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Last sync: {new Date(user.extensionDataImportedAt).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-blue-900">Connect your X account</p>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Authenticate with X (Twitter) OAuth to enable analytics, AI features, and posting capabilities.
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <Button 
-                    onClick={async () => {
-                      setLoading(true);
-                      try {
-                        // Get OAuth URL from backend
-                        const response = await api.get('/auth/twitter');
-                        
-                        if (response.data.status === 'success') {
-                          // Redirect to Twitter OAuth
-                          // Backend encodes codeVerifier in state parameter
-                          window.location.href = response.data.data.authUrl;
-                        } else {
-                          toast.error('Failed to initiate Twitter authentication');
-                        }
-                      } catch (error) {
-                        toast.error(error.response?.data?.message || 'Failed to connect X account');
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    loading={loading}
-                    className="w-full"
-                  >
-                    <Twitter className="w-4 h-4 mr-2" />
-                    Connect with X (Twitter)
-                  </Button>
-                  
-                  <p className="text-xs text-gray-500 text-center mt-2">
-                    You'll be redirected to X to authorize Vibex. We only request permissions necessary for the features you use.
+              <div className="flex items-start space-x-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-amber-900">No data synced yet</p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Install the Chrome extension and sync your X data to enable AI features.
                   </p>
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
 
-      {activeTab === 'preferences' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Content Preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Likes Import */}
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Heart className="w-5 h-5 text-red-500" />
-                <h3 className="text-lg font-semibold text-gray-900">Import Your X Likes</h3>
+            {/* How it works */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-900">How it works</h3>
+              <div className="grid gap-4">
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">1</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Install the extension</p>
+                    <p className="text-sm text-gray-600">Add Vibex to Chrome from the Chrome Web Store</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">2</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Collect your posts & likes</p>
+                    <p className="text-sm text-gray-600">Visit x.com and use the extension to scrape your content</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">3</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Sync to Vibex</p>
+                    <p className="text-sm text-gray-600">Click "Sync" in the extension to import your data</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-600 rounded-full text-sm font-medium">4</div>
+                  <div>
+                    <p className="font-medium text-gray-900">AI learns your style</p>
+                    <p className="text-sm text-gray-600">Our AI analyzes your content to generate personalized replies</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Import your liked tweets so Vibex can analyze your interests and generate content that matches your style and preferences.
+            </div>
+
+            {/* Download Button */}
+            <div className="pt-4 border-t">
+              <Button 
+                onClick={() => window.open('https://chrome.google.com/webstore', '_blank')}
+                className="w-full"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Get Chrome Extension
+                <ExternalLink className="w-3 h-3 ml-2" />
+              </Button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Free • No X API required • Your data stays private
               </p>
-
-              {user?.likesImported ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-green-900">Likes Imported</p>
-                        <p className="text-sm text-green-700">{user?.likesCount || 0} tweets analyzed</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={async () => {
-                        try {
-                          setLoading(true);
-                          await profileAPI.importLikes();
-                          toast.success('Likes refreshed successfully!');
-                        } catch (error) {
-                          toast.error('Failed to refresh likes');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      loading={loading}
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Refresh
-                    </Button>
-                  </div>
-
-                  {/* AI Insights */}
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Sparkles className="w-4 h-4 text-blue-600" />
-                      <p className="text-sm font-medium text-blue-900">AI Insights from Your Likes</p>
-                    </div>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Prefers tech and AI-related content</li>
-                      <li>• Engaged with productivity tips and tools</li>
-                      <li>• Interested in startup and entrepreneurship topics</li>
-                      <li>• Casual and conversational writing style</li>
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-start space-x-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                    <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-medium text-purple-900">Personalized Content Generation</p>
-                      <p className="text-sm text-purple-700 mt-1">
-                        By importing your likes, our AI will analyze your interests, preferred topics, and writing style to generate content that truly resonates with you.
-                      </p>
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={async () => {
-                      if (!user?.twitterConnected) {
-                        toast.error('Please connect your X account first');
-                        setActiveTab('twitter');
-                        return;
-                      }
-                      try {
-                        setLoading(true);
-                        await profileAPI.importLikes();
-                        updateUser({ likesImported: true, likesCount: 127 });
-                        toast.success('Likes imported successfully! AI is analyzing your preferences...');
-                      } catch (error) {
-                        toast.error(error.response?.data?.message || 'Failed to import likes');
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                    loading={loading}
-                    disabled={!user?.twitterConnected}
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    Import My Likes
-                  </Button>
-
-                  {!user?.twitterConnected && (
-                    <p className="text-xs text-amber-600">
-                      ⚠️ Connect your X account first to import likes
-                    </p>
-                  )}
-
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-800 font-medium">⚠️ Development Mode</p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      In production, this feature will use Twitter OAuth to securely access your liked tweets. 
-                      The AI will analyze content themes, writing styles, and topics you engage with to personalize content generation.
-                      Currently, demo data is used to illustrate the feature.
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

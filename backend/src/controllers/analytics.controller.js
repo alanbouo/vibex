@@ -2,7 +2,6 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import Analytics from '../models/Analytics.model.js';
 import Tweet from '../models/Tweet.model.js';
-import twitterService from '../services/twitter.service.js';
 import dayjs from 'dayjs';
 
 /**
@@ -110,47 +109,21 @@ export const getGrowthMetrics = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Sync Twitter analytics
+ * @desc    Sync analytics (from local data only, no Twitter API)
  * @route   POST /api/analytics/sync
  * @access  Private
+ * @note    Analytics are now based on local data only - no Twitter API
  */
 export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
-  if (!req.user.twitterAccount.connected) {
-    return next(new AppError('Twitter account not connected', 400));
-  }
-
-  const accessToken = req.user.twitterAccount.accessToken;
-  const userId = req.user.twitterAccount.userId;
-
-  // Fetch profile analytics (1 API call)
-  const profile = await twitterService.getUserProfile(accessToken, userId);
-  
-  // Skip detailed engagement analysis to save API quota
-  // analyzeProfileEngagement makes another API call for tweets
-  // On Free tier (100 reads/month), we need to be conservative
-  const engagement = {
-    avgLikes: 0,
-    avgRetweets: 0,
-    avgReplies: 0,
-    avgEngagementRate: 0,
-    totalTweets: profile.public_metrics?.tweet_count || 0
-  };
-
-  // Skip individual tweet analytics to conserve API quota
-  // On Free tier, each getTweetAnalytics call burns 1 read
-  // With 100 reads/month, we can't afford to fetch analytics for each tweet
+  // Get published tweets from local database
   const publishedTweets = await Tweet.find({
     user: req.user.id,
-    status: 'published',
-    twitterId: { $exists: true }
+    status: 'published'
   })
   .sort({ publishedAt: -1 })
-  .limit(10);
+  .limit(100);
 
-  // Note: Individual tweet analytics disabled to save API quota
-  // TODO: Re-enable when user upgrades to Basic tier ($100/mo)
-
-  // Calculate total impressions from published tweets
+  // Calculate local analytics
   const totalImpressions = publishedTweets.reduce((sum, tweet) => 
     sum + (tweet.analytics?.impressions || 0), 0
   );
@@ -165,23 +138,17 @@ export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
     },
     {
       metrics: {
-        followers: {
-          count: profile.public_metrics.followers_count,
-          change: 0 // TODO: Calculate from previous day
-        },
-        following: {
-          count: profile.public_metrics.following_count,
-          change: 0
-        },
+        followers: { count: 0, change: 0 },
+        following: { count: 0, change: 0 },
         engagement: {
-          rate: parseFloat(engagement.avgEngagementRate) || 0,
-          total: engagement.totalTweets,
-          likes: engagement.avgLikes,
-          retweets: engagement.avgRetweets,
-          replies: engagement.avgReplies
+          rate: 0,
+          total: publishedTweets.length,
+          likes: 0,
+          retweets: 0,
+          replies: 0
         },
         tweets: {
-          count: profile.public_metrics.tweet_count,
+          count: publishedTweets.length,
           impressions: totalImpressions,
           published: publishedTweets.length
         }
@@ -190,19 +157,12 @@ export const syncTwitterAnalytics = asyncHandler(async (req, res, next) => {
     { upsert: true, new: true }
   );
 
-  // Increment usage
-  await req.user.incrementUsage('analyticsChecked');
-
   res.status(200).json({
     status: 'success',
-    message: 'Analytics synced successfully',
+    message: 'Analytics synced from local data',
     data: {
-      profile: {
-        followers: profile.public_metrics.followers_count,
-        following: profile.public_metrics.following_count,
-        tweets: profile.public_metrics.tweet_count
-      },
-      engagement
+      tweetsCount: publishedTweets.length,
+      note: 'Twitter API analytics removed. Use Chrome extension for data collection.'
     }
   });
 });

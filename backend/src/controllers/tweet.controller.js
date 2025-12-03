@@ -1,7 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import Tweet from '../models/Tweet.model.js';
-import twitterService from '../services/twitter.service.js';
 import logger from '../utils/logger.js';
 
 /**
@@ -139,18 +138,6 @@ export const deleteTweet = asyncHandler(async (req, res, next) => {
     return next(new AppError('Tweet not found', 404));
   }
 
-  // If published on Twitter, delete from Twitter too
-  if (tweet.status === 'published' && tweet.twitterId) {
-    const user = req.user;
-    if (user.twitterAccount.connected) {
-      try {
-        await twitterService.deleteTweet(user.twitterAccount.accessToken, tweet.twitterId);
-      } catch (error) {
-        logger.error('Error deleting tweet from Twitter:', error);
-      }
-    }
-  }
-
   await tweet.deleteOne();
 
   res.status(200).json({
@@ -160,49 +147,32 @@ export const deleteTweet = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Publish tweet immediately
+ * @desc    Mark tweet as published (user manually posted to X)
  * @route   POST /api/tweets/:id/publish
  * @access  Private
+ * @note    This just marks the tweet as published - user copies content to X manually
  */
 export const publishTweet = asyncHandler(async (req, res, next) => {
   const tweet = await Tweet.findOne({
     _id: req.params.id,
     user: req.user.id
-  }).populate('user');
+  });
 
   if (!tweet) {
     return next(new AppError('Tweet not found', 404));
-  }
-
-  if (!req.user.twitterAccount.connected) {
-    return next(new AppError('Twitter account not connected', 400));
-  }
-
-  const accessToken = req.user.twitterAccount.accessToken;
-
-  let result;
-  if (tweet.type === 'thread' && tweet.threadTweets.length > 0) {
-    result = await twitterService.postThread(accessToken, tweet.threadTweets);
-    tweet.twitterId = result[0].id;
-  } else {
-    result = await twitterService.postTweet(accessToken, tweet.content, {
-      mediaIds: tweet.mediaUrls
-    });
-    tweet.twitterId = result.id;
   }
 
   tweet.status = 'published';
   tweet.publishedAt = new Date();
   await tweet.save();
 
-  logger.info(`Tweet published: ${tweet._id}`);
+  logger.info(`Tweet marked as published: ${tweet._id}`);
 
   res.status(200).json({
     status: 'success',
-    message: 'Tweet published successfully',
+    message: 'Tweet marked as published',
     data: {
-      tweet,
-      twitterData: result
+      tweet
     }
   });
 });

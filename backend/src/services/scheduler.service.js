@@ -1,6 +1,5 @@
 import cron from 'node-cron';
 import Tweet from '../models/Tweet.model.js';
-import twitterService from './twitter.service.js';
 import logger from '../utils/logger.js';
 
 class SchedulerService {
@@ -13,7 +12,7 @@ class SchedulerService {
    * Initialize cron jobs
    */
   initCronJobs() {
-    // Check for scheduled tweets every minute
+    // Check for scheduled tweets every minute (for reminders)
     cron.schedule('* * * * *', async () => {
       await this.processPendingTweets();
     });
@@ -23,73 +22,27 @@ class SchedulerService {
 
   /**
    * Process pending scheduled tweets
+   * Note: Without Twitter API, this just marks tweets as ready to post
+   * Users will need to manually copy and post to X
    */
   async processPendingTweets() {
     try {
-      const now = new Date();
-      const oneMinuteFromNow = new Date(now.getTime() + 60000);
-
       // Find tweets scheduled within the next minute
       const scheduledTweets = await Tweet.getScheduledTweets(1);
 
       for (const tweet of scheduledTweets) {
-        if (!tweet.user.twitterAccount.connected) {
-          logger.warn(`User ${tweet.user._id} has no connected Twitter account`);
-          continue;
-        }
-
         try {
-          await this.publishTweet(tweet);
-        } catch (error) {
-          logger.error(`Failed to publish tweet ${tweet._id}:`, error);
-          tweet.status = 'failed';
+          // Mark as ready (user needs to manually post)
+          tweet.status = 'ready';
+          tweet.readyAt = new Date();
           await tweet.save();
+          logger.info(`Tweet ${tweet._id} is ready to post`);
+        } catch (error) {
+          logger.error(`Failed to process tweet ${tweet._id}:`, error);
         }
       }
     } catch (error) {
       logger.error('Error processing pending tweets:', error);
-    }
-  }
-
-  /**
-   * Publish a tweet
-   */
-  async publishTweet(tweet) {
-    try {
-      const accessToken = tweet.user.twitterAccount.accessToken;
-
-      let result;
-
-      if (tweet.type === 'thread' && tweet.threadTweets.length > 0) {
-        // Post as thread
-        result = await twitterService.postThread(
-          accessToken,
-          tweet.threadTweets
-        );
-        tweet.twitterId = result[0].id; // Store first tweet's ID
-      } else {
-        // Post single tweet
-        result = await twitterService.postTweet(
-          accessToken,
-          tweet.content,
-          { mediaIds: tweet.mediaUrls }
-        );
-        tweet.twitterId = result.id;
-      }
-
-      tweet.status = 'published';
-      tweet.publishedAt = new Date();
-      await tweet.save();
-
-      logger.info(`Successfully published tweet ${tweet._id}`);
-
-      // Increment user usage
-      await tweet.user.incrementUsage('tweetsScheduled');
-
-      return result;
-    } catch (error) {
-      logger.error(`Error publishing tweet ${tweet._id}:`, error);
-      throw error;
     }
   }
 

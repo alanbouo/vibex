@@ -42,17 +42,8 @@ const userSchema = new mongoose.Schema({
     stripeCustomerId: String,
     stripeSubscriptionId: String
   },
-  twitterAccount: {
-    connected: {
-      type: Boolean,
-      default: false
-    },
-    userId: String,
-    username: String,
-    accessToken: String,
-    refreshToken: String,
-    expiresAt: Date
-  },
+  // Extension data sync timestamp
+  extensionDataImportedAt: Date,
   preferences: {
     timezone: {
       type: String,
@@ -224,15 +215,6 @@ userSchema.methods.incrementUsage = async function(type) {
   await this.save();
 };
 
-// Virtual for full Twitter profile
-userSchema.virtual('twitterProfile').get(function() {
-  if (!this.twitterAccount.connected) return null;
-  return {
-    username: this.twitterAccount.username,
-    userId: this.twitterAccount.userId
-  };
-});
-
 // Virtual for likes imported status
 userSchema.virtual('likesImported').get(function() {
   return this.likedTweets && this.likedTweets.length > 0;
@@ -243,9 +225,9 @@ userSchema.virtual('likesCount').get(function() {
   return this.likedTweets ? this.likedTweets.length : 0;
 });
 
-// Virtual for Twitter connected status
-userSchema.virtual('twitterConnected').get(function() {
-  return this.twitterAccount && this.twitterAccount.connected;
+// Virtual for extension connected status
+userSchema.virtual('extensionConnected').get(function() {
+  return !!this.extensionDataImportedAt;
 });
 
 userSchema.set('toJSON', { virtuals: true });

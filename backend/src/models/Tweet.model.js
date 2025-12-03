@@ -155,7 +155,7 @@ tweetSchema.statics.getScheduledTweets = function(timeWindow = 60) {
   return this.find({
     status: 'scheduled',
     scheduledFor: { $gte: now, $lte: future }
-  }).populate('user', 'twitterAccount');
+  }).populate('user', 'email name');
 };
 
 const Tweet = mongoose.model('Tweet', tweetSchema);
