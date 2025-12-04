@@ -262,14 +262,36 @@ export const getContentPerformance = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 export const getImportedAnalytics = asyncHandler(async (req, res, next) => {
-  const importedTweets = req.user.importedTweets || [];
+  const { months = 3 } = req.query;
+  const monthsNum = parseInt(months) || 3;
   
-  if (importedTweets.length === 0) {
+  const allTweets = req.user.importedTweets || [];
+  
+  if (allTweets.length === 0) {
     return res.status(200).json({
       status: 'success',
       data: {
         hasData: false,
         message: 'No imported posts yet. Use the Chrome extension to import your tweets.'
+      }
+    });
+  }
+
+  // Filter by date range
+  const startDate = dayjs().subtract(monthsNum, 'month').startOf('day');
+  const importedTweets = allTweets.filter(tweet => {
+    if (!tweet.createdAt) return false;
+    return dayjs(tweet.createdAt).isAfter(startDate);
+  });
+
+  if (importedTweets.length === 0) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        hasData: true,
+        noDataInPeriod: true,
+        message: `No posts found in the last ${monthsNum} month(s). Try selecting a longer period.`,
+        totalAllTime: allTweets.length
       }
     });
   }
@@ -312,14 +334,44 @@ export const getImportedAnalytics = asyncHandler(async (req, res, next) => {
     ? ((totalEngagements / totals.impressions) * 100).toFixed(2)
     : 0;
 
-  // Posts over time (by day)
-  const postsByDate = importedTweets.reduce((acc, tweet) => {
-    if (tweet.createdAt) {
-      const date = dayjs(tweet.createdAt).format('YYYY-MM-DD');
-      acc[date] = (acc[date] || 0) + 1;
-    }
-    return acc;
-  }, {});
+  // Weekly trend data
+  const weeklyTrend = [];
+  const weeksToShow = Math.min(monthsNum * 4, 12); // Max 12 weeks
+  
+  for (let i = weeksToShow - 1; i >= 0; i--) {
+    const weekStart = dayjs().subtract(i, 'week').startOf('week');
+    const weekEnd = dayjs().subtract(i, 'week').endOf('week');
+    
+    const weekPosts = importedTweets.filter(tweet => {
+      if (!tweet.createdAt) return false;
+      const tweetDate = dayjs(tweet.createdAt);
+      return tweetDate.isAfter(weekStart) && tweetDate.isBefore(weekEnd);
+    });
+
+    const weekMetrics = weekPosts.reduce((acc, tweet) => {
+      const m = tweet.metrics || {};
+      acc.impressions += m.impression_count || 0;
+      acc.likes += m.like_count || 0;
+      acc.retweets += m.retweet_count || 0;
+      acc.replies += m.reply_count || 0;
+      return acc;
+    }, { impressions: 0, likes: 0, retweets: 0, replies: 0 });
+
+    const weekEngagements = weekMetrics.likes + weekMetrics.retweets + weekMetrics.replies;
+    const weekEngRate = weekMetrics.impressions > 0 
+      ? ((weekEngagements / weekMetrics.impressions) * 100).toFixed(2)
+      : 0;
+
+    weeklyTrend.push({
+      weekLabel: weekStart.format('MMM D'),
+      posts: weekPosts.length,
+      impressions: weekMetrics.impressions,
+      likes: weekMetrics.likes,
+      retweets: weekMetrics.retweets,
+      replies: weekMetrics.replies,
+      engagementRate: parseFloat(weekEngRate)
+    });
+  }
 
   // Calculate averages
   const count = importedTweets.length;
@@ -330,22 +382,37 @@ export const getImportedAnalytics = asyncHandler(async (req, res, next) => {
     repliesPerPost: (totals.replies / count).toFixed(1)
   };
 
+  // Calculate trend change (compare first half to second half)
+  const midpoint = Math.floor(weeklyTrend.length / 2);
+  const firstHalf = weeklyTrend.slice(0, midpoint);
+  const secondHalf = weeklyTrend.slice(midpoint);
+  
+  const avgFirst = firstHalf.reduce((sum, w) => sum + w.engagementRate, 0) / (firstHalf.length || 1);
+  const avgSecond = secondHalf.reduce((sum, w) => sum + w.engagementRate, 0) / (secondHalf.length || 1);
+  const trendChange = avgFirst > 0 ? (((avgSecond - avgFirst) / avgFirst) * 100).toFixed(0) : 0;
+
   res.status(200).json({
     status: 'success',
     data: {
       hasData: true,
+      period: {
+        months: monthsNum,
+        startDate: startDate.format('YYYY-MM-DD'),
+        endDate: dayjs().format('YYYY-MM-DD')
+      },
       summary: {
         totalPosts: count,
         totalImpressions: totals.impressions,
         totalLikes: totals.likes,
         totalRetweets: totals.retweets,
         totalReplies: totals.replies,
-        engagementRate: `${engagementRate}%`
+        engagementRate: `${engagementRate}%`,
+        trendChange: parseInt(trendChange)
       },
       averages,
       postTypes,
+      weeklyTrend,
       topPosts,
-      postsByDate,
       lastImported: req.user.extensionDataImportedAt
     }
   });

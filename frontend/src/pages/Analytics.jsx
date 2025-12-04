@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Heart, Repeat2, RefreshCw, MessageSquare, Eye, FileText, AlertCircle, ExternalLink } from 'lucide-react';
+import { TrendingUp, Heart, Repeat2, RefreshCw, MessageSquare, Eye, FileText, AlertCircle, ExternalLink, TrendingDown } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import { analyticsAPI } from '../services/api';
 import { formatNumber } from '../lib/utils';
 
 const Analytics = () => {
+  const [months, setMonths] = useState(3);
+  
   const { data: analyticsData, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['imported-analytics'],
-    queryFn: () => analyticsAPI.getImportedAnalytics(),
+    queryKey: ['imported-analytics', months],
+    queryFn: () => analyticsAPI.getImportedAnalytics(months),
   });
 
   const analytics = analyticsData?.data?.data;
@@ -46,7 +49,41 @@ const Analytics = () => {
     );
   }
 
-  const { summary, averages, postTypes, topPosts } = analytics;
+  // Handle case where no data in selected period
+  if (analytics?.noDataInPeriod) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
+            <p className="text-gray-600 mt-1">Track your X performance</p>
+          </div>
+          <select
+            value={months}
+            onChange={(e) => setMonths(parseInt(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg"
+          >
+            <option value="1">Last month</option>
+            <option value="3">Last 3 months</option>
+            <option value="6">Last 6 months</option>
+            <option value="12">Last year</option>
+          </select>
+        </div>
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Posts in This Period</h3>
+              <p className="text-gray-600 mb-4">{analytics.message}</p>
+              <p className="text-sm text-gray-500">You have {analytics.totalAllTime} posts total.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { summary, averages, postTypes, topPosts, weeklyTrend } = analytics;
 
   return (
     <div className="space-y-6">
@@ -54,18 +91,29 @@ const Analytics = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
           <p className="text-gray-600 mt-1">
-            Data from {summary.totalPosts} imported posts
+            {summary.totalPosts} posts in the last {months} month{months > 1 ? 's' : ''}
             {analytics.lastImported && (
               <span className="text-xs text-gray-400 ml-2">
-                Last synced: {new Date(analytics.lastImported).toLocaleDateString()}
+                • Last synced: {new Date(analytics.lastImported).toLocaleDateString()}
               </span>
             )}
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} disabled={isRefetching}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <select
+            value={months}
+            onChange={(e) => setMonths(parseInt(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="1">Last month</option>
+            <option value="3">Last 3 months</option>
+            <option value="6">Last 6 months</option>
+            <option value="12">Last year</option>
+          </select>
+          <Button variant="outline" onClick={() => refetch()} disabled={isRefetching}>
+            <RefreshCw className={`w-4 h-4 ${isRefetching ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -120,10 +168,109 @@ const Analytics = () => {
               <TrendingUp className="w-5 h-5 text-purple-600" />
             </div>
             <h3 className="text-2xl font-bold">{summary.engagementRate}</h3>
-            <p className="text-xs text-gray-500 mt-1">{formatNumber(summary.totalReplies)} replies</p>
+            <div className="flex items-center gap-1 mt-1">
+              {summary.trendChange > 0 ? (
+                <TrendingUp className="w-3 h-3 text-green-500" />
+              ) : summary.trendChange < 0 ? (
+                <TrendingDown className="w-3 h-3 text-red-500" />
+              ) : null}
+              <p className={`text-xs ${summary.trendChange > 0 ? 'text-green-600' : summary.trendChange < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                {summary.trendChange > 0 ? '+' : ''}{summary.trendChange}% vs prior
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Weekly Trend Chart */}
+      {weeklyTrend && weeklyTrend.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Weekly Trend</CardTitle>
+              <div className="flex items-center gap-4 text-xs">
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 bg-blue-500 rounded"></span> Posts
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 bg-purple-500 rounded"></span> Engagement %
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              {/* Bar chart for posts and line overlay for engagement */}
+              <div className="flex items-end justify-between h-48 gap-1 px-2">
+                {weeklyTrend.map((week, index) => {
+                  const maxPosts = Math.max(...weeklyTrend.map(w => w.posts), 1);
+                  const maxEng = Math.max(...weeklyTrend.map(w => w.engagementRate), 1);
+                  const postHeight = (week.posts / maxPosts) * 100;
+                  const engHeight = (week.engagementRate / maxEng) * 100;
+                  
+                  return (
+                    <div key={index} className="flex-1 flex flex-col items-center group relative">
+                      {/* Tooltip */}
+                      <div className="absolute -top-20 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                        <div className="bg-gray-900 text-white text-xs px-3 py-2 rounded shadow-lg whitespace-nowrap">
+                          <p className="font-medium">{week.weekLabel}</p>
+                          <p>{week.posts} posts</p>
+                          <p>{formatNumber(week.impressions)} impressions</p>
+                          <p>{week.engagementRate.toFixed(2)}% engagement</p>
+                        </div>
+                      </div>
+                      
+                      {/* Bars container */}
+                      <div className="w-full h-full flex items-end justify-center gap-0.5">
+                        {/* Posts bar */}
+                        <div 
+                          className="w-1/2 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all hover:from-blue-700 hover:to-blue-500"
+                          style={{ height: `${Math.max(postHeight, 4)}%` }}
+                        />
+                        {/* Engagement bar */}
+                        <div 
+                          className="w-1/2 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t transition-all hover:from-purple-700 hover:to-purple-500"
+                          style={{ height: `${Math.max(engHeight, 4)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* X-axis labels */}
+              <div className="flex justify-between px-2 mt-2">
+                {weeklyTrend.map((week, index) => (
+                  <div key={index} className="flex-1 text-center">
+                    <span className="text-[10px] text-gray-500">{week.weekLabel}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Summary row */}
+            <div className="grid grid-cols-4 gap-4 pt-4 mt-4 border-t">
+              <div className="text-center">
+                <p className="text-lg font-bold text-blue-600">{weeklyTrend.reduce((sum, w) => sum + w.posts, 0)}</p>
+                <p className="text-xs text-gray-500">Total Posts</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-cyan-600">{formatNumber(weeklyTrend.reduce((sum, w) => sum + w.impressions, 0))}</p>
+                <p className="text-xs text-gray-500">Impressions</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-red-600">{formatNumber(weeklyTrend.reduce((sum, w) => sum + w.likes, 0))}</p>
+                <p className="text-xs text-gray-500">Likes</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-purple-600">
+                  {(weeklyTrend.reduce((sum, w) => sum + w.engagementRate, 0) / weeklyTrend.length).toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-500">Avg Engagement</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Post Types Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
