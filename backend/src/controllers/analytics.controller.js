@@ -255,3 +255,98 @@ export const getContentPerformance = asyncHandler(async (req, res, next) => {
     }
   });
 });
+
+/**
+ * @desc    Get analytics from imported posts (scraped via extension)
+ * @route   GET /api/analytics/imported
+ * @access  Private
+ */
+export const getImportedAnalytics = asyncHandler(async (req, res, next) => {
+  const importedTweets = req.user.importedTweets || [];
+  
+  if (importedTweets.length === 0) {
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        hasData: false,
+        message: 'No imported posts yet. Use the Chrome extension to import your tweets.'
+      }
+    });
+  }
+
+  // Aggregate metrics
+  const totals = importedTweets.reduce((acc, tweet) => {
+    const m = tweet.metrics || {};
+    acc.impressions += m.impression_count || 0;
+    acc.likes += m.like_count || 0;
+    acc.retweets += m.retweet_count || 0;
+    acc.replies += m.reply_count || 0;
+    return acc;
+  }, { impressions: 0, likes: 0, retweets: 0, replies: 0 });
+
+  // Count post types
+  const postTypes = importedTweets.reduce((acc, tweet) => {
+    const type = tweet.type || 'original';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Find top performing posts
+  const topPosts = [...importedTweets]
+    .sort((a, b) => {
+      const engA = (a.metrics?.like_count || 0) + (a.metrics?.retweet_count || 0) + (a.metrics?.reply_count || 0);
+      const engB = (b.metrics?.like_count || 0) + (b.metrics?.retweet_count || 0) + (b.metrics?.reply_count || 0);
+      return engB - engA;
+    })
+    .slice(0, 5)
+    .map(t => ({
+      content: t.content?.slice(0, 100) + (t.content?.length > 100 ? '...' : ''),
+      url: t.url,
+      metrics: t.metrics,
+      createdAt: t.createdAt
+    }));
+
+  // Calculate engagement rate
+  const totalEngagements = totals.likes + totals.retweets + totals.replies;
+  const engagementRate = totals.impressions > 0 
+    ? ((totalEngagements / totals.impressions) * 100).toFixed(2)
+    : 0;
+
+  // Posts over time (by day)
+  const postsByDate = importedTweets.reduce((acc, tweet) => {
+    if (tweet.createdAt) {
+      const date = dayjs(tweet.createdAt).format('YYYY-MM-DD');
+      acc[date] = (acc[date] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  // Calculate averages
+  const count = importedTweets.length;
+  const averages = {
+    impressionsPerPost: Math.round(totals.impressions / count),
+    likesPerPost: (totals.likes / count).toFixed(1),
+    retweetsPerPost: (totals.retweets / count).toFixed(1),
+    repliesPerPost: (totals.replies / count).toFixed(1)
+  };
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      hasData: true,
+      summary: {
+        totalPosts: count,
+        totalImpressions: totals.impressions,
+        totalLikes: totals.likes,
+        totalRetweets: totals.retweets,
+        totalReplies: totals.replies,
+        engagementRate: `${engagementRate}%`
+      },
+      averages,
+      postTypes,
+      topPosts,
+      postsByDate,
+      lastImported: req.user.extensionDataImportedAt
+    }
+  });
+});

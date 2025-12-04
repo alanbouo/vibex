@@ -5,7 +5,8 @@ import {
   getGrowthMetrics,
   syncTwitterAnalytics,
   getAudienceInsights,
-  getContentPerformance
+  getContentPerformance,
+  getImportedAnalytics
 } from '../controllers/analytics.controller.js';
 import { protect, checkUsageLimit } from '../middleware/auth.middleware.js';
 
@@ -20,5 +21,8 @@ router.get('/growth', getGrowthMetrics);
 router.post('/sync', checkUsageLimit('analyticsChecked'), syncTwitterAnalytics);
 router.get('/audience', getAudienceInsights);
 router.get('/content-performance', getContentPerformance);
+
+// Analytics from imported posts (Chrome extension data)
+router.get('/imported', getImportedAnalytics);
 
 export default router;

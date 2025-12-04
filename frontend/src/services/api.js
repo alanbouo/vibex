@@ -96,6 +96,7 @@ export const analyticsAPI = {
   syncTwitterAnalytics: () => api.post('/analytics/sync'),
   getAudienceInsights: () => api.get('/analytics/audience'),
   getContentPerformance: () => api.get('/analytics/content-performance'),
+  getImportedAnalytics: () => api.get('/analytics/imported'),
 };
 
 // Profile API (Extension-based, no Twitter API)
