@@ -24,6 +24,7 @@ import { profileAPI } from '../services/api';
 const ReplyHelper = () => {
   const { user } = useAuthStore();
   const [tweetContent, setTweetContent] = useState('');
+  const [guidance, setGuidance] = useState(''); // Custom guidance for AI
   const [replies, setReplies] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -97,7 +98,8 @@ const ReplyHelper = () => {
       const response = await profileAPI.generateReplies({ 
         tweetContent: tweetContent.trim(),
         count: 3,
-        image: uploadedImage
+        image: uploadedImage,
+        guidance: guidance.trim() || undefined
       });
       setReplies(response.data.data.replies);
       setActiveTab('replies');
@@ -122,7 +124,8 @@ const ReplyHelper = () => {
       const response = await profileAPI.generateQuotes({ 
         tweetContent: tweetContent.trim(),
         count: 3,
-        image: uploadedImage
+        image: uploadedImage,
+        guidance: guidance.trim() || undefined
       });
       setQuotes(response.data.data.quotes);
       setActiveTab('quotes');
@@ -382,6 +385,24 @@ const ReplyHelper = () => {
                 </p>
               </label>
             )}
+          </div>
+
+          {/* Guidance Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Guidance <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={guidance}
+              onChange={(e) => setGuidance(e.target.value)}
+              placeholder="e.g., be funny, ask a question, share a contrarian take..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              maxLength={100}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Steer the AI's tone or approach
+            </p>
           </div>
           
           <div className="flex gap-3">

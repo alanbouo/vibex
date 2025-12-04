@@ -439,8 +439,9 @@ Write content that sounds authentically like them - use their vocabulary, match 
    * @param {Object} styleProfile - User's writing style profile
    * @param {number} count - Number of replies to generate
    * @param {string} imageBase64 - Optional base64 encoded image of the tweet
+   * @param {string} guidance - Optional user guidance to steer the AI
    */
-  async generateReplies(tweetContent, styleProfile, count = 3, imageBase64 = null) {
+  async generateReplies(tweetContent, styleProfile, count = 3, imageBase64 = null, guidance = null) {
     try {
       const styleContext = styleProfile ? `
 Match this writing style:
@@ -449,20 +450,26 @@ Match this writing style:
 - Emoji usage: ${styleProfile.emojiUsage}
 ` : '';
 
+      const guidanceContext = guidance ? `
+IMPORTANT - User's guidance for this reply: "${guidance}"
+Follow this direction while crafting the replies.
+` : '';
+
       const systemPrompt = `You are helping a user craft engaging replies on Twitter. Generate ${count} different reply options that are authentic and likely to get engagement.
-${styleContext}
+${styleContext}${guidanceContext}
 Each reply should be under 280 characters. Make them conversational and add value to the discussion.`;
 
       let userContent;
       
       if (imageBase64) {
         // Use vision model with image
+        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
         const imagePrompt = tweetContent 
-          ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"\n\nGenerate ${count} reply options that:
+          ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"${guidanceNote}\n\nGenerate ${count} reply options that:
 1. Add value or insight to what's shown in the image
 2. Are engaging and likely to start conversation
 3. Sound natural, not generic`
-          : `Look at this screenshot of a tweet. Generate ${count} reply options that:
+          : `Look at this screenshot of a tweet.${guidanceNote}\n\nGenerate ${count} reply options that:
 1. Add value or insight to what's shown in the image
 2. Are engaging and likely to start conversation
 3. Sound natural, not generic`;
@@ -481,9 +488,10 @@ Each reply should be under 280 characters. Make them conversational and add valu
           }
         ];
       } else {
+        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
         userContent = `Generate ${count} reply options for this tweet:
 
-"${tweetContent}"
+"${tweetContent}"${guidanceNote}
 
 Provide replies that:
 1. Add value or insight
@@ -511,8 +519,9 @@ Provide replies that:
 
   /**
    * Generate quote tweet suggestions
+   * @param {string} guidance - Optional user guidance to steer the AI
    */
-  async generateQuotes(tweetContent, styleProfile, count = 3, imageBase64 = null) {
+  async generateQuotes(tweetContent, styleProfile, count = 3, imageBase64 = null, guidance = null) {
     try {
       const styleContext = styleProfile ? `
 Match this writing style:
@@ -520,20 +529,26 @@ Match this writing style:
 - Topics: ${styleProfile.topics?.slice(0, 3).join(', ')}
 ` : '';
 
+      const guidanceContext = guidance ? `
+IMPORTANT - User's guidance for this quote: "${guidance}"
+Follow this direction while crafting the quotes.
+` : '';
+
       const systemPrompt = `You are helping a user create engaging quote tweets. Generate ${count} different quote tweet options that add unique perspective or value.
-${styleContext}
+${styleContext}${guidanceContext}
 Each should be under 200 characters (leaving room for the quoted tweet). Make them insightful and shareable.`;
 
       let userContent;
       
       if (imageBase64) {
         // Use vision model with image
+        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
         const imagePrompt = tweetContent 
-          ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"\n\nGenerate ${count} quote tweet options that:
+          ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"${guidanceNote}\n\nGenerate ${count} quote tweet options that:
 1. Add your unique take or insight on what's shown
 2. Could go viral or get high engagement
 3. Position you as a thought leader`
-          : `Look at this screenshot of a tweet. Generate ${count} quote tweet options that:
+          : `Look at this screenshot of a tweet.${guidanceNote}\n\nGenerate ${count} quote tweet options that:
 1. Add your unique take or insight on what's shown
 2. Could go viral or get high engagement
 3. Position you as a thought leader`;
@@ -552,9 +567,10 @@ Each should be under 200 characters (leaving room for the quoted tweet). Make th
           }
         ];
       } else {
+        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
         userContent = `Generate ${count} quote tweet options for this tweet:
 
-"${tweetContent}"
+"${tweetContent}"${guidanceNote}
 
 Provide quotes that:
 1. Add your unique take or insight

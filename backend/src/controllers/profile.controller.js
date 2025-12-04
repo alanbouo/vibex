@@ -38,14 +38,14 @@ export const getStyleProfile = asyncHandler(async (req, res, next) => {
  * @note    Supports image upload (base64) for vision-based reply generation
  */
 export const generateReplies = asyncHandler(async (req, res, next) => {
-  const { tweetContent, count = 3, image } = req.body;
+  const { tweetContent, count = 3, image, guidance } = req.body;
 
   if (!tweetContent && !image) {
     return next(new AppError('Tweet content or image is required', 400));
   }
 
   const styleProfile = req.user.styleProfile || null;
-  const replies = await aiService.generateReplies(tweetContent, styleProfile, count, image);
+  const replies = await aiService.generateReplies(tweetContent, styleProfile, count, image, guidance);
 
   res.status(200).json({
     status: 'success',
@@ -64,14 +64,14 @@ export const generateReplies = asyncHandler(async (req, res, next) => {
  * @note    No Twitter API calls - uses stored style profile
  */
 export const generateQuotes = asyncHandler(async (req, res, next) => {
-  const { tweetContent, count = 3, image } = req.body;
+  const { tweetContent, count = 3, image, guidance } = req.body;
 
   if (!tweetContent && !image) {
     return next(new AppError('Tweet content or image is required', 400));
   }
 
   const styleProfile = req.user.styleProfile || null;
-  const quotes = await aiService.generateQuotes(tweetContent, styleProfile, count, image);
+  const quotes = await aiService.generateQuotes(tweetContent, styleProfile, count, image, guidance);
 
   res.status(200).json({
     status: 'success',
