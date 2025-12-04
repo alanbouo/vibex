@@ -15,7 +15,9 @@ import {
   Download,
   Image,
   X,
-  Upload
+  Upload,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { profileAPI } from '../services/api';
 
@@ -34,6 +36,7 @@ const ReplyHelper = () => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [ratedSuggestions, setRatedSuggestions] = useState({}); // Track which suggestions have been rated
 
   // Load style profile on mount
   useEffect(() => {
@@ -138,6 +141,37 @@ const ReplyHelper = () => {
     setCopiedIndex(index);
     toast.success('Copied to clipboard!');
     setTimeout(() => setCopiedIndex(null), 2000);
+    
+    // Track that this suggestion was copied (for feedback)
+    submitFeedback(text, 1, true);
+  };
+
+  const submitFeedback = async (output, rating, wasCopied = false) => {
+    const key = `${activeTab}-${output}`;
+    
+    // Don't submit if already rated (unless it's just a copy action)
+    if (ratedSuggestions[key] && !wasCopied) return;
+    
+    try {
+      await profileAPI.submitFeedback({
+        type: activeTab === 'replies' ? 'reply' : 'quote',
+        input: {
+          text: tweetContent,
+          hasImage: !!uploadedImage
+        },
+        output,
+        rating,
+        wasCopied,
+        model: uploadedImage ? 'gpt-4o' : 'gpt-3.5-turbo'
+      });
+      
+      if (!wasCopied) {
+        setRatedSuggestions(prev => ({ ...prev, [key]: rating }));
+        toast.success(rating === 1 ? 'Thanks! 👍' : 'Thanks for the feedback');
+      }
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+    }
   };
 
   const handleImageUpload = (file) => {
@@ -406,36 +440,74 @@ const ReplyHelper = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {suggestions.map((suggestion, index) => (
-                <div 
-                  key={index}
-                  className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
-                >
-                  <p className="text-gray-900 mb-3">{suggestion}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">
-                      {suggestion.length}/280 characters
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copyToClipboard(suggestion, index)}
-                    >
-                      {copiedIndex === index ? (
-                        <>
-                          <Check className="w-3 h-3 mr-1 text-green-600" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
+              {suggestions.map((suggestion, index) => {
+                const ratingKey = `${activeTab}-${suggestion}`;
+                const currentRating = ratedSuggestions[ratingKey];
+                
+                return (
+                  <div 
+                    key={index}
+                    className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                  >
+                    <p className="text-gray-900 mb-3">{suggestion}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-500">
+                          {suggestion.length}/280 characters
+                        </span>
+                        {/* Feedback buttons */}
+                        <div className="flex items-center gap-1 border-l pl-3 ml-1">
+                          <button
+                            onClick={() => submitFeedback(suggestion, 1)}
+                            disabled={currentRating !== undefined}
+                            className={`p-1.5 rounded-md transition-colors ${
+                              currentRating === 1
+                                ? 'bg-green-100 text-green-600'
+                                : currentRating === -1
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                            }`}
+                            title="Good suggestion"
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => submitFeedback(suggestion, -1)}
+                            disabled={currentRating !== undefined}
+                            className={`p-1.5 rounded-md transition-colors ${
+                              currentRating === -1
+                                ? 'bg-red-100 text-red-600'
+                                : currentRating === 1
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                            title="Not helpful"
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(suggestion, index)}
+                      >
+                        {copiedIndex === index ? (
+                          <>
+                            <Check className="w-3 h-3 mr-1 text-green-600" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

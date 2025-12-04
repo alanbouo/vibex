@@ -1,6 +1,7 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/AppError.js';
 import aiService from '../services/ai.service.js';
+import Feedback from '../models/Feedback.model.js';
 
 /**
  * @desc    Get user's style profile
@@ -217,5 +218,63 @@ export const importExtensionData = asyncHandler(async (req, res, next) => {
       styleAnalyzed: !!styleProfile?.analyzedAt,
       apiCallsUsed: 0 // No Twitter API calls!
     }
+  });
+});
+
+/**
+ * @desc    Submit feedback on AI suggestion
+ * @route   POST /api/profiles/feedback
+ * @access  Private
+ */
+export const submitFeedback = asyncHandler(async (req, res, next) => {
+  const { type, input, output, rating, wasCopied, model } = req.body;
+
+  if (!type || !output || !rating) {
+    return next(new AppError('Type, output, and rating are required', 400));
+  }
+
+  if (!['reply', 'quote', 'styled_tweet'].includes(type)) {
+    return next(new AppError('Invalid feedback type', 400));
+  }
+
+  if (![1, -1].includes(rating)) {
+    return next(new AppError('Rating must be 1 (good) or -1 (bad)', 400));
+  }
+
+  const feedback = await Feedback.create({
+    user: req.user.id,
+    type,
+    input: {
+      text: input?.text || '',
+      hasImage: input?.hasImage || false
+    },
+    output,
+    rating,
+    wasCopied: wasCopied || false,
+    styleProfileSnapshot: req.user.styleProfile ? {
+      tone: req.user.styleProfile.tone,
+      topics: req.user.styleProfile.topics
+    } : null,
+    model: model || 'gpt-3.5-turbo'
+  });
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Feedback submitted',
+    data: { feedbackId: feedback._id }
+  });
+});
+
+/**
+ * @desc    Get feedback stats (for admin/analytics)
+ * @route   GET /api/profiles/feedback/stats
+ * @access  Private
+ */
+export const getFeedbackStats = asyncHandler(async (req, res, next) => {
+  const stats = await Feedback.getStats(req.user.id);
+  
+  res.status(200).json({
+    status: 'success',
+    data: { stats }
   });
 });

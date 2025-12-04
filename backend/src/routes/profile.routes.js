@@ -4,7 +4,9 @@ import {
   getStyleProfile,
   generateReplies,
   generateQuotes,
-  generateStyledTweet
+  generateStyledTweet,
+  submitFeedback,
+  getFeedbackStats
 } from '../controllers/profile.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 
@@ -23,5 +25,9 @@ router.post('/import-extension-data', importExtensionData);
 router.post('/generate-replies', generateReplies);
 router.post('/generate-quotes', generateQuotes);
 router.post('/generate-styled-tweet', generateStyledTweet);
+
+// Feedback for RLHF (Reinforcement Learning from Human Feedback)
+router.post('/feedback', submitFeedback);
+router.get('/feedback/stats', getFeedbackStats);
 
 export default router;
