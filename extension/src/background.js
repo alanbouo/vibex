@@ -109,6 +109,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// Fetch with timeout helper
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Check if user is authenticated
 async function checkAuthStatus() {
   const token = await getAuthToken();
@@ -121,9 +137,9 @@ async function checkAuthStatus() {
   
   // Verify token is still valid
   try {
-    const response = await fetch(`${API_URL}/auth/me`, {
+    const response = await fetchWithTimeout(`${API_URL}/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
-    });
+    }, 8000);
     
     if (response.ok) {
       const data = await response.json();
@@ -139,9 +155,13 @@ async function checkAuthStatus() {
       return { authenticated: false };
     }
   } catch (error) {
+    console.log('Auth check error:', error.name, error.message);
     // If API is unreachable but we have a token and cached user, assume still authenticated
     if (cachedUser) {
-      return { authenticated: true, user: cachedUser };
+      return { authenticated: true, user: cachedUser, offline: true };
+    }
+    if (error.name === 'AbortError') {
+      return { authenticated: false, error: 'Connection timeout. Is the backend running?' };
     }
     return { authenticated: false, error: error.message };
   }
@@ -312,18 +332,26 @@ async function syncDataToBackend(data) {
     throw new Error('Not authenticated. Please log in to the Vibex dashboard first.');
   }
 
-  // Use the new import-extension-data endpoint
-  const response = await fetch(`${API_URL}/profiles/import-extension-data`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      posts: data.posts || [],
-      likes: data.likes || []
-    })
-  });
+  // Use the new import-extension-data endpoint with timeout
+  let response;
+  try {
+    response = await fetchWithTimeout(`${API_URL}/profiles/import-extension-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        posts: data.posts || [],
+        likes: data.likes || []
+      })
+    }, 30000); // 30 second timeout for sync
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Sync timeout. Backend may be unavailable. Try again later.');
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

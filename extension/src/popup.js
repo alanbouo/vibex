@@ -128,13 +128,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   
   document.getElementById('connectBtn').addEventListener('click', () => {
-    setStatus('warning', 'Connecting...');
+    const btn = document.getElementById('connectBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-icon">⏳</span> Connecting...';
+    setStatus('warning', 'Connecting to Vibex...');
+    
     chrome.runtime.sendMessage({ action: 'connectAccount' }, (response) => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">🔗</span> Connect to Vibex';
+      
       if (response.success) {
         showConnectedState(response.user);
         setStatus('success', 'Connected to Vibex!');
       } else if (response.needsLogin) {
         setStatus('warning', response.message);
+      } else if (response.error?.includes('timeout')) {
+        setStatus('error', 'Backend not responding. Try again later.');
       } else {
         setStatus('error', response.error || 'Connection failed');
       }
