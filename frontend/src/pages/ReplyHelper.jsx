@@ -109,8 +109,8 @@ const ReplyHelper = () => {
   };
 
   const handleGenerateQuotes = async () => {
-    if (!tweetContent.trim()) {
-      toast.error('Please paste a tweet to quote');
+    if (!tweetContent.trim() && !uploadedImage) {
+      toast.error('Please paste a tweet or upload an image to quote');
       return;
     }
 
@@ -118,10 +118,14 @@ const ReplyHelper = () => {
     try {
       const response = await profileAPI.generateQuotes({ 
         tweetContent: tweetContent.trim(),
-        count: 3 
+        count: 3,
+        image: uploadedImage
       });
       setQuotes(response.data.data.quotes);
       setActiveTab('quotes');
+      if (response.data.data.usedImage) {
+        toast.success('Generated quotes from image!');
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to generate quotes');
     } finally {

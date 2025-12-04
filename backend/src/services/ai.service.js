@@ -512,7 +512,7 @@ Provide replies that:
   /**
    * Generate quote tweet suggestions
    */
-  async generateQuotes(tweetContent, styleProfile, count = 3) {
+  async generateQuotes(tweetContent, styleProfile, count = 3, imageBase64 = null) {
     try {
       const styleContext = styleProfile ? `
 Match this writing style:
@@ -524,7 +524,35 @@ Match this writing style:
 ${styleContext}
 Each should be under 200 characters (leaving room for the quoted tweet). Make them insightful and shareable.`;
 
-      const userPrompt = `Generate ${count} quote tweet options for this tweet:
+      let userContent;
+      
+      if (imageBase64) {
+        // Use vision model with image
+        const imagePrompt = tweetContent 
+          ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"\n\nGenerate ${count} quote tweet options that:
+1. Add your unique take or insight on what's shown
+2. Could go viral or get high engagement
+3. Position you as a thought leader`
+          : `Look at this screenshot of a tweet. Generate ${count} quote tweet options that:
+1. Add your unique take or insight on what's shown
+2. Could go viral or get high engagement
+3. Position you as a thought leader`;
+
+        userContent = [
+          {
+            type: 'text',
+            text: imagePrompt
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`,
+              detail: 'high'
+            }
+          }
+        ];
+      } else {
+        userContent = `Generate ${count} quote tweet options for this tweet:
 
 "${tweetContent}"
 
@@ -532,12 +560,13 @@ Provide quotes that:
 1. Add your unique take or insight
 2. Could go viral or get high engagement
 3. Position you as a thought leader`;
+      }
 
       const response = await this.getOpenAI().chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: imageBase64 ? 'gpt-4o' : 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: userContent }
         ],
         temperature: 0.8,
         max_tokens: 400,
