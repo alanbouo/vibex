@@ -328,9 +328,13 @@ function handleDataCollected(type, count) {
 
 async function syncDataToBackend(data) {
   const token = await getAuthToken();
+  console.log('Sync: Token present:', !!token);
+  
   if (!token) {
     throw new Error('Not authenticated. Please log in to the Vibex dashboard first.');
   }
+
+  console.log('Sync: Sending', data.posts?.length || 0, 'posts and', data.likes?.length || 0, 'likes');
 
   // Use the new import-extension-data endpoint with timeout
   let response;
@@ -347,18 +351,23 @@ async function syncDataToBackend(data) {
       })
     }, 30000); // 30 second timeout for sync
   } catch (error) {
+    console.error('Sync fetch error:', error);
     if (error.name === 'AbortError') {
-      throw new Error('Sync timeout. Backend may be unavailable. Try again later.');
+      throw new Error('Sync timeout. Backend may be unavailable.');
     }
-    throw error;
+    throw new Error(`Network error: ${error.message}`);
   }
+
+  console.log('Sync: Response status:', response.status);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || 'Failed to sync data');
+    console.error('Sync error response:', errorData);
+    throw new Error(errorData.message || `Server error: ${response.status}`);
   }
 
   const result = await response.json();
+  console.log('Sync: Success!', result);
   
   // Show success notification
   chrome.notifications.create({

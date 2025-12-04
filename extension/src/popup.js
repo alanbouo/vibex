@@ -97,6 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   document.getElementById('syncBtn').addEventListener('click', async () => {
+    const syncBtn = document.getElementById('syncBtn');
+    syncBtn.disabled = true;
+    syncBtn.textContent = 'Syncing...';
     setStatus('warning', 'Syncing to cloud...');
     
     const data = await getStorageData();
@@ -104,10 +107,15 @@ document.addEventListener('DOMContentLoaded', () => {
       action: 'syncToBackend', 
       data: { posts: data.posts, likes: data.likes }
     }, (response) => {
+      syncBtn.disabled = false;
+      syncBtn.textContent = 'Sync to Cloud';
+      
       if (response && response.success) {
         setStatus('success', 'Synced successfully!');
       } else {
-        setStatus('error', 'Sync failed. Check if you\'re logged in.');
+        const errorMsg = response?.error || 'Unknown error';
+        console.error('Sync failed:', errorMsg);
+        setStatus('error', `Sync failed: ${errorMsg.substring(0, 50)}`);
       }
     });
   });
