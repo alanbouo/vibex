@@ -32,7 +32,6 @@ const ReplyHelper = () => {
   const [styleProfile, setStyleProfile] = useState(null);
   const [importedCounts, setImportedCounts] = useState({ tweets: 0, likes: 0 });
   const [styleLoading, setStyleLoading] = useState(true);
-  const [importLoading, setImportLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -62,29 +61,14 @@ const ReplyHelper = () => {
     }
   };
 
-  const handleImportStyle = async () => {
-    if (!user?.twitterConnected) {
-      toast.error('Please connect your X account first in Settings');
-      return;
-    }
-
-    setImportLoading(true);
-    try {
-      const response = await profileAPI.importStyle();
-      const data = response.data.data;
-      
-      if (data.alreadyImported) {
-        toast.success(response.data.message);
-      } else {
-        toast.success(`Style imported! Analyzed ${data.tweetsImported} tweets and ${data.likesImported} likes.`);
-      }
-      
-      setStyleProfile(data.styleProfile);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to import style');
-    } finally {
-      setImportLoading(false);
-    }
+  const handleImportStyle = () => {
+    // Style import now happens via Chrome extension
+    // Redirect user to Settings page to set up extension
+    toast('Import your data using the Chrome extension in Settings', {
+      icon: '📦',
+      duration: 4000
+    });
+    window.location.href = '/settings';
   };
 
   const handleGenerateReplies = async () => {
@@ -292,10 +276,9 @@ const ReplyHelper = () => {
                   variant="outline" 
                   size="sm"
                   onClick={handleImportStyle}
-                  loading={importLoading}
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  Re-import
+                  Update Style
                 </Button>
               </div>
             </div>
@@ -304,13 +287,13 @@ const ReplyHelper = () => {
               <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
               <h3 className="font-medium text-gray-900 mb-2">No Style Profile Yet</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Import your tweets and likes so AI can learn your writing style.
+                Use the Chrome extension to import your tweets and likes.
                 <br />
-                <span className="text-amber-600 font-medium">Uses 2 API reads (one-time)</span>
+                <span className="text-green-600 font-medium">No API calls needed!</span>
               </p>
-              <Button onClick={handleImportStyle} loading={importLoading}>
+              <Button onClick={handleImportStyle}>
                 <Download className="w-4 h-4 mr-2" />
-                Import My Style
+                Set Up Extension
               </Button>
             </div>
           )}
