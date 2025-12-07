@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
@@ -17,7 +17,8 @@ import {
   X,
   Upload,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Clipboard
 } from 'lucide-react';
 import { profileAPI } from '../services/api';
 
@@ -37,11 +38,85 @@ const ReplyHelper = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [ratedSuggestions, setRatedSuggestions] = useState({}); // Track which suggestions have been rated
+  const [clipboardImage, setClipboardImage] = useState(null); // Detected clipboard image
+  const [showClipboardPrompt, setShowClipboardPrompt] = useState(false);
 
   // Load style profile on mount
   useEffect(() => {
     loadStyleProfile();
   }, []);
+
+  // Check clipboard for images on page focus (mobile-friendly)
+  const checkClipboard = useCallback(async () => {
+    // Don't check if we already have an image
+    if (uploadedImage) return;
+    
+    try {
+      // Check if Clipboard API is available
+      if (!navigator.clipboard?.read) return;
+      
+      const clipboardItems = await navigator.clipboard.read();
+      
+      for (const item of clipboardItems) {
+        // Look for image types
+        const imageType = item.types.find(type => type.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setClipboardImage(e.target.result);
+            setShowClipboardPrompt(true);
+          };
+          reader.readAsDataURL(blob);
+          break;
+        }
+      }
+    } catch (error) {
+      // Clipboard access denied or not available - silently ignore
+      // This is expected on first visit before user grants permission
+      console.log('Clipboard check:', error.name);
+    }
+  }, [uploadedImage]);
+
+  // Check clipboard on mount and when window regains focus
+  useEffect(() => {
+    // Initial check after a short delay (gives time for permission prompt)
+    const initialCheck = setTimeout(checkClipboard, 500);
+    
+    // Check when user returns to the page (e.g., after taking screenshot)
+    const handleFocus = () => {
+      checkClipboard();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkClipboard();
+      }
+    });
+    
+    return () => {
+      clearTimeout(initialCheck);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [checkClipboard]);
+
+  // Use clipboard image
+  const useClipboardImage = () => {
+    if (clipboardImage) {
+      setUploadedImage(clipboardImage);
+      setImagePreview(clipboardImage);
+      setShowClipboardPrompt(false);
+      setClipboardImage(null);
+      toast.success('Screenshot loaded from clipboard!');
+    }
+  };
+
+  // Dismiss clipboard prompt
+  const dismissClipboardPrompt = () => {
+    setShowClipboardPrompt(false);
+    setClipboardImage(null);
+  };
 
   const loadStyleProfile = async () => {
     try {
@@ -221,6 +296,51 @@ const ReplyHelper = () => {
         </p>
       </div>
 
+      {/* Clipboard Image Detected Banner */}
+      {showClipboardPrompt && clipboardImage && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 animate-in slide-in-from-top duration-300">
+          <div className="flex items-start gap-4">
+            {/* Thumbnail */}
+            <div className="flex-shrink-0">
+              <img 
+                src={clipboardImage} 
+                alt="Clipboard" 
+                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border-2 border-blue-300 shadow-sm"
+              />
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Clipboard className="w-4 h-4 text-blue-600" />
+                <h3 className="font-semibold text-blue-900 text-sm sm:text-base">Screenshot detected!</h3>
+              </div>
+              <p className="text-xs sm:text-sm text-blue-700 mb-3">
+                Use this image from your clipboard?
+              </p>
+              
+              {/* Actions */}
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  onClick={useClipboardImage}
+                  className="text-xs sm:text-sm"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1" />
+                  Use Screenshot
+                </Button>
+                <button
+                  onClick={dismissClipboardPrompt}
+                  className="px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Style Profile Card */}
       <Card>
         <CardHeader>
@@ -369,6 +489,46 @@ const ReplyHelper = () => {
               </label>
             )}
           </div>
+
+          {/* Paste from Clipboard Button - for mobile */}
+          {!imagePreview && (
+            <button
+              onClick={async () => {
+                try {
+                  if (!navigator.clipboard?.read) {
+                    toast.error('Clipboard not supported in this browser');
+                    return;
+                  }
+                  const clipboardItems = await navigator.clipboard.read();
+                  for (const item of clipboardItems) {
+                    const imageType = item.types.find(type => type.startsWith('image/'));
+                    if (imageType) {
+                      const blob = await item.getType(imageType);
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        setUploadedImage(e.target.result);
+                        setImagePreview(e.target.result);
+                        toast.success('Screenshot pasted!');
+                      };
+                      reader.readAsDataURL(blob);
+                      return;
+                    }
+                  }
+                  toast.error('No image found in clipboard');
+                } catch (error) {
+                  if (error.name === 'NotAllowedError') {
+                    toast.error('Please allow clipboard access');
+                  } else {
+                    toast.error('Could not read clipboard');
+                  }
+                }
+              }}
+              className="w-full py-2.5 px-4 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Clipboard className="w-4 h-4" />
+              Paste Screenshot from Clipboard
+            </button>
+          )}
 
           {/* Guidance Input */}
           <div>
