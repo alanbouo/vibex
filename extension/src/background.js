@@ -2,8 +2,8 @@
 // Handles AI generation, data sync, and communication
 
 // Production URLs
-const API_URL = 'https://api.vibex.alanbouo.com/api';
-const DASHBOARD_URL = 'https://vibex.alanbouo.com';
+const API_URL = 'https://api.vibx.space/api';
+const DASHBOARD_URL = 'https://vibx.space';
 
 // Development URLs (uncomment for local dev)
 // const API_URL = 'http://localhost:5000/api';
