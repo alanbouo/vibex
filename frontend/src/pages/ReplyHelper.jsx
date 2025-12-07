@@ -212,11 +212,11 @@ const ReplyHelper = () => {
   const suggestions = activeTab === 'replies' ? replies : quotes;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reply Helper</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Reply Helper</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">
           Generate engaging replies and quote tweets in your style
         </p>
       </div>
@@ -236,22 +236,22 @@ const ReplyHelper = () => {
             </div>
           ) : styleProfile ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-3 bg-purple-50 rounded-lg">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="p-2.5 sm:p-3 bg-purple-50 rounded-lg">
                   <p className="text-xs text-purple-600 font-medium">Tone</p>
-                  <p className="text-sm font-semibold capitalize">{styleProfile.tone}</p>
+                  <p className="text-sm font-semibold capitalize truncate">{styleProfile.tone}</p>
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="p-2.5 sm:p-3 bg-blue-50 rounded-lg">
                   <p className="text-xs text-blue-600 font-medium">Emoji Usage</p>
-                  <p className="text-sm font-semibold capitalize">{styleProfile.emojiUsage}</p>
+                  <p className="text-sm font-semibold capitalize truncate">{styleProfile.emojiUsage}</p>
                 </div>
-                <div className="p-3 bg-green-50 rounded-lg">
+                <div className="p-2.5 sm:p-3 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-600 font-medium">Avg Length</p>
                   <p className="text-sm font-semibold">{styleProfile.avgLength} chars</p>
                 </div>
-                <div className="p-3 bg-amber-50 rounded-lg">
+                <div className="p-2.5 sm:p-3 bg-amber-50 rounded-lg">
                   <p className="text-xs text-amber-600 font-medium">Hashtags</p>
-                  <p className="text-sm font-semibold capitalize">{styleProfile.hashtagStyle}</p>
+                  <p className="text-sm font-semibold capitalize truncate">{styleProfile.hashtagStyle}</p>
                 </div>
               </div>
               
@@ -388,7 +388,7 @@ const ReplyHelper = () => {
             </p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button 
               onClick={handleGenerateReplies}
               loading={loading && activeTab === 'replies'}
@@ -414,14 +414,14 @@ const ReplyHelper = () => {
       {suggestions.length > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-base sm:text-lg">
                 {activeTab === 'replies' ? 'Reply Suggestions' : 'Quote Tweet Suggestions'}
               </CardTitle>
               <div className="flex gap-1">
                 <button
                   onClick={() => setActiveTab('replies')}
-                  className={`px-3 py-1 text-sm rounded-lg ${
+                  className={`px-3 py-1.5 text-sm rounded-lg ${
                     activeTab === 'replies' 
                       ? 'bg-blue-100 text-blue-700' 
                       : 'text-gray-600 hover:bg-gray-100'
@@ -431,7 +431,7 @@ const ReplyHelper = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('quotes')}
-                  className={`px-3 py-1 text-sm rounded-lg ${
+                  className={`px-3 py-1.5 text-sm rounded-lg ${
                     activeTab === 'quotes' 
                       ? 'bg-blue-100 text-blue-700' 
                       : 'text-gray-600 hover:bg-gray-100'
@@ -454,13 +454,13 @@ const ReplyHelper = () => {
                     className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
                   >
                     <p className="text-gray-900 mb-3">{suggestion}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <span className="text-xs text-gray-500">
-                          {suggestion.length}/280 characters
+                          {suggestion.length}/280
                         </span>
                         {/* Feedback buttons */}
-                        <div className="flex items-center gap-1 border-l pl-3 ml-1">
+                        <div className="flex items-center gap-1 border-l pl-2 sm:pl-3 ml-1">
                           <button
                             onClick={() => submitFeedback(suggestion, 1)}
                             disabled={currentRating !== undefined}

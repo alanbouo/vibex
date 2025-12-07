@@ -13,7 +13,7 @@ export const Card = ({ className, children, ...props }) => {
 
 export const CardHeader = ({ className, children, ...props }) => {
   return (
-    <div className={cn('p-6 pb-4', className)} {...props}>
+    <div className={cn('p-4 sm:p-6 pb-3 sm:pb-4', className)} {...props}>
       {children}
     </div>
   );
@@ -29,7 +29,7 @@ export const CardTitle = ({ className, children, ...props }) => {
 
 export const CardContent = ({ className, children, ...props }) => {
   return (
-    <div className={cn('p-6 pt-0', className)} {...props}>
+    <div className={cn('p-4 sm:p-6 pt-0', className)} {...props}>
       {children}
     </div>
   );

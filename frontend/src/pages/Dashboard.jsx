@@ -9,19 +9,19 @@ import Button from '../components/Button';
 
 const StatCard = ({ title, value, change, icon: Icon, trend }) => (
   <Card>
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <h3 className="text-2xl font-bold text-gray-900 mt-2">{value}</h3>
+    <CardContent className="p-3 sm:p-6">
+      <div className="flex items-start sm:items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">{title}</p>
+          <h3 className="text-lg sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2">{value}</h3>
           {change && (
-            <p className={`text-sm mt-1 ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-xs sm:text-sm mt-0.5 sm:mt-1 ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
               {trend === 'up' ? '↑' : '↓'} {change}%
             </p>
           )}
         </div>
-        <div className="p-3 bg-blue-50 rounded-lg">
-          <Icon className="w-6 h-6 text-blue-600" />
+        <div className="p-2 sm:p-3 bg-blue-50 rounded-lg flex-shrink-0">
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
         </div>
       </div>
     </CardContent>
@@ -52,24 +52,24 @@ const Dashboard = () => {
   // Show onboarding if extension data not imported
   if (!extensionDataImported) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to Vibex! 👋</h1>
-          <p className="text-gray-600 mt-1">Let's get you started</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome to Vibex! 👋</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Let's get you started</p>
         </div>
 
         <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-purple-50">
-          <CardContent className="p-8">
+          <CardContent className="p-5 sm:p-8">
             <div className="text-center max-w-2xl mx-auto">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-                <Chrome className="w-8 h-8 text-white" />
+              <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 rounded-full mb-4">
+                <Chrome className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Import Your X Data</h2>
-              <p className="text-gray-600 mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Import Your X Data</h2>
+              <p className="text-sm sm:text-base text-gray-600 mb-6">
                 Use our Chrome extension to import your tweets and style. This helps the AI learn your voice and generate content that sounds like you.
               </p>
               <Link to="/settings">
-                <Button size="lg" className="inline-flex items-center">
+                <Button size="lg" className="inline-flex items-center w-full sm:w-auto justify-center">
                   Set Up Chrome Extension
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
@@ -79,7 +79,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
           <Card>
             <CardContent className="p-6">
               <div className="p-3 bg-blue-100 rounded-lg w-fit mb-4">
@@ -196,10 +196,10 @@ const Dashboard = () => {
   const showDemoMode = !hasAnalyticsData || analyticsError;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Demo Mode Banner */}
       {showDemoMode && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-4 rounded-lg">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-lg">
           <div className="flex items-start">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
@@ -220,19 +220,19 @@ const Dashboard = () => {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Overview of your X performance</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Overview of your X performance</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {stats.map((stat, index) => (
           <StatCard key={index} {...stat} />
         ))}
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Top Performing Tweets */}
         <Card>
           <CardHeader>
@@ -244,13 +244,13 @@ const Dashboard = () => {
                 <div key={tweet._id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
                   <div className="flex-1">
                     <p className="text-sm text-gray-900 line-clamp-2">{tweet.content}</p>
-                    <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
                       <span>❤️ {formatNumber(tweet.analytics.likes)}</span>
                       <span>🔁 {formatNumber(tweet.analytics.retweets)}</span>
                       <span>💬 {formatNumber(tweet.analytics.replies)}</span>
-                      <span>🔖 {formatNumber(tweet.analytics.bookmarks)}</span>
+                      <span className="hidden sm:inline">🔖 {formatNumber(tweet.analytics.bookmarks)}</span>
                       <span className="font-medium text-blue-600">
-                        {tweet.analytics.engagementRate.toFixed(1)}% ER
+                        {tweet.analytics.engagementRate.toFixed(1)}%
                       </span>
                     </div>
                   </div>
