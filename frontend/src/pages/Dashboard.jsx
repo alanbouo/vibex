@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Users, MessageSquare, BarChart2, Twitter, ArrowRight } from 'lucide-react';
+import { TrendingUp, Users, MessageSquare, BarChart2, Chrome, ArrowRight, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { analyticsAPI, tweetAPI } from '../services/api';
@@ -30,12 +30,13 @@ const StatCard = ({ title, value, change, icon: Icon, trend }) => (
 
 const Dashboard = () => {
   const { user } = useAuthStore();
-  const twitterConnected = user?.twitterConnected || false;
+  // Check if user has imported data via Chrome extension
+  const extensionDataImported = user?.extensionDataImportedAt ? true : false;
 
   const { data: analyticsData, isError: analyticsError } = useQuery({
     queryKey: ['analytics-summary'],
     queryFn: () => analyticsAPI.getSummary({ period: 'daily' }),
-    enabled: twitterConnected,
+    enabled: extensionDataImported,
     retry: 1,
     onError: (error) => {
       console.error('Analytics fetch error:', error);
@@ -48,8 +49,8 @@ const Dashboard = () => {
     enabled: false, // Disabled for demo mode - using demo data instead
   });
 
-  // Show onboarding if Twitter not connected
-  if (!twitterConnected) {
+  // Show onboarding if extension data not imported
+  if (!extensionDataImported) {
     return (
       <div className="space-y-6">
         <div>
@@ -61,15 +62,15 @@ const Dashboard = () => {
           <CardContent className="p-8">
             <div className="text-center max-w-2xl mx-auto">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-                <Twitter className="w-8 h-8 text-white" />
+                <Chrome className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect Your X Account</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Import Your X Data</h2>
               <p className="text-gray-600 mb-6">
-                Connect your X (Twitter) account to start using AI-powered features, analytics, and scheduling tools.
+                Use our Chrome extension to import your tweets and style. This helps the AI learn your voice and generate content that sounds like you.
               </p>
               <Link to="/settings">
                 <Button size="lg" className="inline-flex items-center">
-                  Connect X Account
+                  Set Up Chrome Extension
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
@@ -208,9 +209,9 @@ const Dashboard = () => {
             <div className="ml-3 flex-1">
               <h3 className="text-sm font-medium text-amber-800">Demo Mode Active</h3>
               <p className="mt-1 text-sm text-amber-700">
-                {twitterConnected 
+                {extensionDataImported 
                   ? "You're viewing demo data because your analytics haven't been synced yet. Go to Settings to sync your X analytics data."
-                  : "You're viewing demo data to illustrate the production experience. Connect your X account to see real analytics."}
+                  : "You're viewing demo data to illustrate the production experience. Import your X data via the Chrome extension to see real analytics."}
               </p>
             </div>
           </div>
