@@ -1,219 +1,335 @@
-# Coolify Quick Start Guide
+# Coolify Deployment Guide - Separate Frontend & Backend
 
-Deploy Vibex to Coolify in under 10 minutes!
+Deploy Vibex to Coolify with separate frontend and backend services for better flexibility and independent scaling.
 
 ## Prerequisites
-✅ Coolify instance running  
-✅ Git repository connected  
-✅ Domain name (optional but recommended)  
 
-## Quick Deployment Steps
+- Coolify instance running
+- Git repository connected to Coolify
+- Two subdomains configured (e.g., `vibex.yourdomain.com` and `api.vibex.yourdomain.com`)
 
-### 1. Add Project to Coolify
+---
 
-```bash
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Coolify Server                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────┐    ┌─────────────────────────────────┐ │
+│  │    Frontend     │    │           Backend               │ │
+│  │  (Dockerfile)   │    │  (Dockerfile + MongoDB + Redis) │ │
+│  │                 │    │                                 │ │
+│  │  vibex.domain   │───▶│  api.vibex.domain               │ │
+│  │     :80         │    │       :5000                     │ │
+│  └─────────────────┘    └─────────────────────────────────┘ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Part 1: Deploy the Backend
+
+The backend includes the API server, MongoDB, and Redis.
+
+### Step 1.1: Create Backend Project
+
 1. Login to Coolify Dashboard
-2. Click "+ New" → "Resource"
-3. Select "Docker Compose"
-4. Choose "Public Repository" or connect your Git
-5. Repository URL: https://github.com/yourusername/vibex
-6. Branch: main
+2. Click **"+ Add"** → **"Project"**
+3. Name it: `vibex-backend`
+
+### Step 1.2: Add MongoDB Service
+
+1. Inside `vibex-backend` project, click **"+ Add"** → **"Resource"**
+2. Select **"Database"** → **"MongoDB"**
+3. Configure:
+   - **Name:** `mongodb`
+   - **Version:** `7.0`
+   - **Root Username:** `admin`
+   - **Root Password:** Generate a secure password (save it!)
+   - **Initial Database:** `vibex`
+4. Click **"Start"**
+
+### Step 1.3: Add Redis Service
+
+1. Click **"+ Add"** → **"Resource"**
+2. Select **"Database"** → **"Redis"**
+3. Configure:
+   - **Name:** `redis`
+   - **Version:** `7-alpine`
+4. Click **"Start"**
+
+### Step 1.4: Deploy Backend API
+
+1. Click **"+ Add"** → **"Resource"**
+2. Select **"Application"** → **"Dockerfile"**
+3. Connect your Git repository
+4. Configure:
+   - **Name:** `backend`
+   - **Branch:** `main`
+   - **Base Directory:** `/backend`
+   - **Dockerfile Location:** `/backend/Dockerfile`
+   - **Port:** `5000`
+
+### Step 1.5: Configure Backend Environment Variables
+
+Go to **Environment Variables** and add:
+
+```env
+# === APPLICATION ===
+NODE_ENV=production
+PORT=5000
+
+# === DATABASE (use internal Coolify URLs) ===
+MONGODB_URI=mongodb://admin:YOUR_MONGO_PASSWORD@mongodb:27017/vibex?authSource=admin
+REDIS_URL=redis://redis:6379
+
+# === AUTHENTICATION (generate with: openssl rand -base64 32) ===
+JWT_SECRET=YOUR_GENERATED_JWT_SECRET
+JWT_EXPIRES_IN=7d
+REFRESH_TOKEN_SECRET=YOUR_GENERATED_REFRESH_SECRET
+REFRESH_TOKEN_EXPIRES_IN=30d
+
+# === URLS ===
+FRONTEND_URL=https://vibex.yourdomain.com
+
+# === AI SERVICES ===
+OPENAI_API_KEY=sk-your-openai-key
+GROK_API_KEY=your-grok-key
+ANTHROPIC_API_KEY=your-anthropic-key
+
+# === AWS S3 (optional, for media storage) ===
+AWS_ACCESS_KEY_ID=your-aws-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=vibex-media
+
+# === SMTP (optional, for emails) ===
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# === FEATURE FLAGS ===
+ENABLE_AI_WRITER=true
+ENABLE_SCHEDULER=true
+ENABLE_ANALYTICS=true
+ENABLE_CHROME_EXTENSION=true
 ```
 
-### 2. Configure Project
+### Step 1.6: Configure Backend Domain
 
-```yaml
-Build Pack: Docker Compose
-Docker Compose File: /docker-compose.prod.yml
-Base Directory: /
+1. Go to **Domains** tab
+2. Add domain: `api.vibex.yourdomain.com`
+3. Port: `5000`
+4. Enable **"Generate SSL Certificate"**
+
+### Step 1.7: Configure Network
+
+Ensure MongoDB, Redis, and Backend are on the same network:
+
+1. Go to each service → **Settings** → **Network**
+2. Create or select a shared network (e.g., `vibex-network`)
+3. Add all three services to this network
+
+### Step 1.8: Deploy Backend
+
+1. Click **"Deploy"** on the backend service
+2. Wait for build to complete
+3. Verify: `curl https://api.vibex.yourdomain.com/health`
+
+Expected response:
+```json
+{"status":"ok"}
 ```
 
-### 3. Generate Secrets
+---
+
+## Part 2: Deploy the Frontend
+
+The frontend is a static Nginx container serving the React app.
+
+### Step 2.1: Create Frontend Project
+
+1. Click **"+ Add"** → **"Project"**
+2. Name it: `vibex-frontend`
+
+### Step 2.2: Deploy Frontend Application
+
+1. Click **"+ Add"** → **"Resource"**
+2. Select **"Application"** → **"Dockerfile"**
+3. Connect your Git repository
+4. Configure:
+   - **Name:** `frontend`
+   - **Branch:** `main`
+   - **Base Directory:** `/frontend`
+   - **Dockerfile Location:** `/frontend/Dockerfile.coolify`
+   - **Port:** `80`
+
+> **Important:** Use `Dockerfile.coolify` (not `Dockerfile`) for Coolify deployments. The regular Dockerfile includes an nginx proxy to `backend:5000` which only works with docker-compose.
+
+### Step 2.3: Configure Frontend Build Arguments
+
+Go to **Environment Variables** → **Build Variables** and add:
+
+```env
+VITE_API_URL=https://api.vibex.yourdomain.com
+```
+
+> **Important:** This is a **build-time** variable. The frontend bakes the API URL into the static files during build.
+
+### Step 2.4: Configure Frontend Domain
+
+1. Go to **Domains** tab
+2. Add domain: `vibex.yourdomain.com`
+3. Port: `80`
+4. Enable **"Generate SSL Certificate"**
+
+### Step 2.5: Deploy Frontend
+
+1. Click **"Deploy"**
+2. Wait for build to complete
+3. Visit `https://vibex.yourdomain.com`
+
+---
+
+## Part 3: DNS Configuration
+
+Add these A records to your DNS provider:
+
+| Type | Name | Value |
+|------|------|-------|
+| A | `vibex.yourdomain.com` | `YOUR_COOLIFY_SERVER_IP` |
+| A | `api.vibex.yourdomain.com` | `YOUR_COOLIFY_SERVER_IP` |
+
+Wait 1-5 minutes for DNS propagation.
+
+---
+
+## Generate Secrets
 
 Run these commands locally to generate secure secrets:
 
 ```bash
-# Generate JWT secrets
-openssl rand -base64 32  # Use for JWT_SECRET
-openssl rand -base64 32  # Use for REFRESH_TOKEN_SECRET
+# JWT Secret
+openssl rand -base64 32
 
-# Generate MongoDB password
-openssl rand -base64 24  # Use for MONGO_PASSWORD
+# Refresh Token Secret
+openssl rand -base64 32
+
+# MongoDB Password
+openssl rand -base64 24
 ```
 
-### 4. Add Environment Variables
+---
 
-In Coolify → Your Project → Environment, add these **required** variables:
+## Verification Checklist
 
-```env
-# === CRITICAL - UPDATE THESE ===
-MONGO_PASSWORD=<paste-generated-password>
-JWT_SECRET=<paste-generated-secret>
-REFRESH_TOKEN_SECRET=<paste-generated-secret>
-OPENAI_API_KEY=sk-your-actual-key
-
-# === UPDATE WITH YOUR DOMAINS ===
-BACKEND_URL=https://api.vibex.yourdomain.com
-FRONTEND_URL=https://vibex.yourdomain.com
-TWITTER_CALLBACK_URL=https://api.vibex.yourdomain.com/api/auth/twitter/callback
-
-# === OPTIONAL BUT RECOMMENDED ===
-TWITTER_BEARER_TOKEN=your-twitter-token
-TWITTER_CLIENT_ID=your-twitter-client-id
-TWITTER_CLIENT_SECRET=your-twitter-client-secret
-AWS_ACCESS_KEY_ID=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret
-AWS_S3_BUCKET=vibex-media
-
-# === DEFAULT VALUES (can customize) ===
-MONGO_USERNAME=admin
-NODE_ENV=production
-BACKEND_PORT=5000
-FRONTEND_PORT=80
-```
-
-> 💡 **Tip:** Copy all variables from `.env.coolify` file and customize them
-
-### 5. Configure Domains
-
-#### Backend Service (API)
-1. Go to your project → `backend` service
-2. Add domain: `api.vibex.yourdomain.com`
-3. Port: `5000`
-4. Enable "Generate Let's Encrypt Certificate"
-
-#### Frontend Service
-1. Go to your project → `frontend` service  
-2. Add domain: `vibex.yourdomain.com`
-3. Port: `80`
-4. Enable "Generate Let's Encrypt Certificate"
-
-### 6. Configure DNS
-
-Add these A records to your DNS provider:
-
-```
-Type    Name                          Value
-----    ----                          -----
-A       vibex.yourdomain.com          YOUR_COOLIFY_SERVER_IP
-A       api.vibex.yourdomain.com      YOUR_COOLIFY_SERVER_IP
-```
-
-Wait 1-5 minutes for DNS propagation.
-
-### 7. Deploy! 🚀
+After deployment, verify everything works:
 
 ```bash
-1. Click "Deploy" button
-2. Watch the build logs
-3. Wait for all services to start (green indicators)
-   - MongoDB ✅
-   - Redis ✅  
-   - Backend ✅
-   - Frontend ✅
-```
-
-### 8. Verify Deployment
-
-Test your deployment:
-
-```bash
-# Test backend
+# 1. Test backend health
 curl https://api.vibex.yourdomain.com/health
 # Expected: {"status":"ok"}
 
-# Test frontend
+# 2. Test frontend
 curl -I https://vibex.yourdomain.com
 # Expected: HTTP/2 200
+
+# 3. Test API from browser console (on frontend)
+fetch('https://api.vibex.yourdomain.com/health').then(r => r.json()).then(console.log)
 ```
 
-Visit `https://vibex.yourdomain.com` in your browser! 🎉
+---
 
 ## Common Issues & Fixes
 
-### ❌ Build Failed
-```bash
-Cause: Missing environment variables
-Fix: Check all required variables are set in Environment section
+### Backend can't connect to MongoDB
+
+**Cause:** Services not on the same network or wrong connection string.
+
+**Fix:**
+1. Verify all services are on the same Coolify network
+2. Check `MONGODB_URI` uses the correct internal hostname (`mongodb`, not `localhost`)
+3. Verify MongoDB password matches
+
+### Frontend shows "Cannot connect to server"
+
+**Cause:** `VITE_API_URL` not set correctly during build.
+
+**Fix:**
+1. Go to Frontend → Environment Variables → Build Variables
+2. Set `VITE_API_URL=https://api.vibex.yourdomain.com`
+3. **Redeploy** the frontend (build variables require rebuild)
+
+### CORS errors in browser
+
+**Cause:** Backend `FRONTEND_URL` doesn't match actual frontend domain.
+
+**Fix:**
+1. Go to Backend → Environment Variables
+2. Set `FRONTEND_URL=https://vibex.yourdomain.com` (exact match, no trailing slash)
+3. Redeploy backend
+
+### SSL Certificate Error
+
+**Cause:** DNS not propagated yet.
+
+**Fix:**
+1. Verify DNS A records point to Coolify server IP
+2. Wait 5-10 minutes
+3. Click "Generate Certificate" again in Coolify
+
+---
+
+## Updating Services
+
+### Update Backend Only
+1. Push changes to `backend/` folder
+2. Go to Coolify → `vibex-backend` → `backend`
+3. Click **"Deploy"**
+
+### Update Frontend Only
+1. Push changes to `frontend/` folder
+2. Go to Coolify → `vibex-frontend` → `frontend`
+3. Click **"Deploy"**
+
+### Enable Auto-Deploy
+
+For each service:
+1. Go to **Settings** → **General**
+2. Enable **"Deploy on Push"**
+3. Copy the webhook URL
+4. Add webhook to your GitHub/GitLab repository
+
+---
+
+## Monitoring & Logs
+
+### View Logs
+```
+Coolify → Project → Service → Logs
 ```
 
-### ❌ Backend Can't Connect to Database
-```bash
-Cause: MongoDB not ready or wrong credentials
-Fix: 
-1. Check MongoDB logs in Coolify
-2. Verify MONGO_PASSWORD matches in all places
-3. Wait 30s for MongoDB to fully start
+### Monitor Resources
+```
+Coolify → Project → Service → Metrics
 ```
 
-### ❌ Frontend Shows "Cannot connect to server"
-```bash
-Cause: BACKEND_URL not set correctly
-Fix: Update BACKEND_URL to your actual API domain
-Environment → BACKEND_URL=https://api.vibex.yourdomain.com
-Redeploy frontend
-```
-
-### ❌ SSL Certificate Error
-```bash
-Cause: DNS not propagated or Let's Encrypt rate limit
-Fix:
-1. Verify DNS points to correct IP
-2. Wait 5-10 minutes for DNS propagation
-3. Try "Generate Certificate" again
-```
-
-## Post-Deployment Checklist
-
-- [ ] Both domains accessible via HTTPS
-- [ ] Backend health endpoint returns OK
-- [ ] Can login/register users
-- [ ] AI features working (requires OPENAI_API_KEY)
-- [ ] Twitter integration working (requires Twitter API keys)
-- [ ] Database persisting data (test by restarting containers)
-
-## Optional: Enable Auto-Deploy
-
-Automatically deploy when you push to Git:
-
-```bash
-1. Go to Project → Settings → General
-2. Enable "Deploy on Push"
-3. Add webhook to your Git repository
-4. Copy webhook URL from Coolify
-5. Add to GitHub/GitLab webhooks
-```
-
-## Monitoring
-
-View logs and metrics:
-
-```bash
-# In Coolify Dashboard
-Project → Logs → Select service (backend/frontend/mongodb/redis)
-
-# Monitor resources
-Project → Metrics
-```
+---
 
 ## Backups
 
-Set up automatic MongoDB backups:
+### MongoDB Backups
+1. Go to `vibex-backend` → `mongodb` → **Backups**
+2. Configure:
+   - **Method:** S3 or Local
+   - **Schedule:** Daily at 2 AM
+3. Save
 
-```bash
-1. Project → mongodb service → Backups
-2. Choose backup method:
-   - S3 (recommended)
-   - Local storage
-3. Set schedule (e.g., daily at 2 AM)
-4. Save
-```
-
-## Need Help?
-
-- 📖 [Full Deployment Guide](./DEPLOYMENT.md)
-- 🔧 [Coolify Documentation](https://coolify.io/docs)
-- 💬 [Coolify Discord](https://discord.gg/coolify)
+---
 
 ## Estimated Costs
 
@@ -225,8 +341,23 @@ Set up automatic MongoDB backups:
 
 **Plus domain:** ~$10-15/year
 
-**Total:** €10-30/month (vs $100-200/month for traditional cloud!)
+**Total:** €10-30/month
 
 ---
 
-**Ready to deploy?** Start with Step 1 above! 🚀
+## Quick Reference
+
+| Service | URL | Port |
+|---------|-----|------|
+| Frontend | `https://vibex.yourdomain.com` | 80 |
+| Backend API | `https://api.vibex.yourdomain.com` | 5000 |
+| MongoDB | Internal: `mongodb:27017` | 27017 |
+| Redis | Internal: `redis:6379` | 6379 |
+
+---
+
+## Need Help?
+
+- [Full Deployment Guide](./DEPLOYMENT.md)
+- [Coolify Documentation](https://coolify.io/docs)
+- [Coolify Discord](https://discord.gg/coolify)
