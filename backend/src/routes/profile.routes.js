@@ -5,6 +5,7 @@ import {
   generateReplies,
   generateQuotes,
   generateStyledTweet,
+  refineSuggestion,
   submitFeedback,
   getFeedbackStats
 } from '../controllers/profile.controller.js';
@@ -25,6 +26,7 @@ router.post('/import-extension-data', importExtensionData);
 router.post('/generate-replies', generateReplies);
 router.post('/generate-quotes', generateQuotes);
 router.post('/generate-styled-tweet', generateStyledTweet);
+router.post('/refine-suggestion', refineSuggestion);
 
 // Feedback for RLHF (Reinforcement Learning from Human Feedback)
 router.post('/feedback', submitFeedback);

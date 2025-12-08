@@ -595,6 +595,75 @@ Provide quotes that:
       throw new AppError('Failed to generate quote tweets', 500);
     }
   }
+
+  /**
+   * Refine an existing suggestion based on user instruction
+   * @param {string} originalSuggestion - The original AI-generated suggestion
+   * @param {string} refinementType - Quick action type or 'custom'
+   * @param {string} customInstruction - Custom refinement instruction (if type is 'custom')
+   * @param {Object} styleProfile - User's style profile
+   * @param {string} originalContext - Original tweet/context being replied to
+   */
+  async refineSuggestion(originalSuggestion, refinementType, customInstruction, styleProfile, originalContext = null) {
+    try {
+      // Map refinement types to instructions
+      const refinementInstructions = {
+        shorter: 'Make it more concise and punchy. Cut unnecessary words.',
+        longer: 'Expand on the idea with more detail or context.',
+        funnier: 'Add humor, wit, or a clever twist. Make it more entertaining.',
+        professional: 'Make it more polished and professional in tone.',
+        casual: 'Make it more relaxed and conversational.',
+        question: 'Rephrase to include an engaging question that invites response.',
+        direct: 'Be more direct and assertive. Get straight to the point.',
+        friendly: 'Make it warmer and more friendly in tone.',
+        spicy: 'Make it bolder, more provocative, or contrarian (but not offensive).',
+        custom: customInstruction || 'Improve this suggestion.'
+      };
+
+      const instruction = refinementInstructions[refinementType] || refinementInstructions.custom;
+
+      const styleContext = styleProfile ? `
+Maintain this writing style:
+- Tone: ${styleProfile.tone}
+- Emoji usage: ${styleProfile.emojiUsage}
+` : '';
+
+      const contextNote = originalContext ? `
+Original tweet being replied to: "${originalContext}"
+` : '';
+
+      const systemPrompt = `You are helping refine a Twitter reply/quote tweet. The user wants to improve their suggestion.
+${styleContext}
+Keep the response under 280 characters. Return ONLY the refined text, no explanations or quotes.`;
+
+      const userPrompt = `Original suggestion:
+"${originalSuggestion}"
+${contextNote}
+Refinement instruction: ${instruction}
+
+Provide the refined version:`;
+
+      const response = await this.getOpenAI().chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 150,
+      });
+
+      let refined = response.choices[0].message.content.trim();
+      
+      // Clean up any quotes the model might have added
+      refined = refined.replace(/^["']|["']$/g, '');
+      
+      return refined;
+    } catch (error) {
+      logger.error('Refine Suggestion Error:', error);
+      throw new AppError('Failed to refine suggestion', 500);
+    }
+  }
 }
 
 export default new AIService();

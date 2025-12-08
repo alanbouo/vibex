@@ -109,6 +109,7 @@ export const profileAPI = {
   generateReplies: (data) => api.post('/profiles/generate-replies', data),
   generateQuotes: (data) => api.post('/profiles/generate-quotes', data),
   generateStyledTweet: (data) => api.post('/profiles/generate-styled-tweet', data),
+  refineSuggestion: (data) => api.post('/profiles/refine-suggestion', data),
   
   // Feedback for AI improvement
   submitFeedback: (data) => api.post('/profiles/feedback', data),

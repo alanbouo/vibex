@@ -18,7 +18,10 @@ import {
   Upload,
   ThumbsUp,
   ThumbsDown,
-  Clipboard
+  Clipboard,
+  Wand2,
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { profileAPI } from '../services/api';
 
@@ -40,6 +43,9 @@ const ReplyHelper = () => {
   const [ratedSuggestions, setRatedSuggestions] = useState({}); // Track which suggestions have been rated
   const [clipboardImage, setClipboardImage] = useState(null); // Detected clipboard image
   const [showClipboardPrompt, setShowClipboardPrompt] = useState(false);
+  const [refiningIndex, setRefiningIndex] = useState(null); // Which suggestion is being refined
+  const [showRefinePanel, setShowRefinePanel] = useState(null); // Which suggestion has refine panel open
+  const [customRefineInput, setCustomRefineInput] = useState('');
 
   // Load style profile on mount
   useEffect(() => {
@@ -195,6 +201,57 @@ const ReplyHelper = () => {
       toast.error(error.response?.data?.message || 'Failed to generate quotes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Refinement quick action options
+  const refinementOptions = [
+    { type: 'shorter', label: 'Shorter', emoji: '✂️' },
+    { type: 'funnier', label: 'Funnier', emoji: '😄' },
+    { type: 'professional', label: 'Professional', emoji: '👔' },
+    { type: 'casual', label: 'Casual', emoji: '😎' },
+    { type: 'question', label: 'Add Question', emoji: '❓' },
+    { type: 'spicy', label: 'Spicier', emoji: '🌶️' },
+  ];
+
+  const handleRefine = async (index, refinementType, customInstruction = null) => {
+    const currentSuggestions = activeTab === 'replies' ? replies : quotes;
+    const originalSuggestion = currentSuggestions[index];
+    
+    setRefiningIndex(index);
+    
+    try {
+      const response = await profileAPI.refineSuggestion({
+        originalSuggestion,
+        refinementType,
+        customInstruction,
+        originalContext: tweetContent || null
+      });
+      
+      const refined = response.data.data.refined;
+      
+      // Update the suggestion in place
+      if (activeTab === 'replies') {
+        setReplies(prev => prev.map((s, i) => i === index ? refined : s));
+      } else {
+        setQuotes(prev => prev.map((s, i) => i === index ? refined : s));
+      }
+      
+      // Clear rating for this suggestion since it changed
+      const oldRatingKey = `${activeTab}-${originalSuggestion}`;
+      setRatedSuggestions(prev => {
+        const newRatings = { ...prev };
+        delete newRatings[oldRatingKey];
+        return newRatings;
+      });
+      
+      toast.success('Suggestion refined!');
+      setShowRefinePanel(null);
+      setCustomRefineInput('');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to refine suggestion');
+    } finally {
+      setRefiningIndex(null);
     }
   };
 
@@ -607,13 +664,29 @@ const ReplyHelper = () => {
               {suggestions.map((suggestion, index) => {
                 const ratingKey = `${activeTab}-${suggestion}`;
                 const currentRating = ratedSuggestions[ratingKey];
+                const isRefining = refiningIndex === index;
+                const isPanelOpen = showRefinePanel === index;
                 
                 return (
                   <div 
                     key={index}
-                    className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                    className={`p-4 bg-gray-50 rounded-lg border transition-colors ${
+                      isPanelOpen ? 'border-purple-300 bg-purple-50/30' : 'border-gray-200 hover:border-blue-300'
+                    }`}
                   >
-                    <p className="text-gray-900 mb-3">{suggestion}</p>
+                    {/* Suggestion text with loading overlay */}
+                    <div className="relative">
+                      <p className={`text-gray-900 mb-3 ${isRefining ? 'opacity-50' : ''}`}>
+                        {suggestion}
+                      </p>
+                      {isRefining && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Action bar */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
                       <div className="flex items-center gap-2 sm:gap-3">
                         <span className="text-xs text-gray-500">
@@ -623,7 +696,7 @@ const ReplyHelper = () => {
                         <div className="flex items-center gap-1 border-l pl-2 sm:pl-3 ml-1">
                           <button
                             onClick={() => submitFeedback(suggestion, 1)}
-                            disabled={currentRating !== undefined}
+                            disabled={currentRating !== undefined || isRefining}
                             className={`p-1.5 rounded-md transition-colors ${
                               currentRating === 1
                                 ? 'bg-green-100 text-green-600'
@@ -637,7 +710,7 @@ const ReplyHelper = () => {
                           </button>
                           <button
                             onClick={() => submitFeedback(suggestion, -1)}
-                            disabled={currentRating !== undefined}
+                            disabled={currentRating !== undefined || isRefining}
                             className={`p-1.5 rounded-md transition-colors ${
                               currentRating === -1
                                 ? 'bg-red-100 text-red-600'
@@ -650,11 +723,28 @@ const ReplyHelper = () => {
                             <ThumbsDown className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                        {/* Refine button */}
+                        <div className="border-l pl-2 sm:pl-3 ml-1">
+                          <button
+                            onClick={() => setShowRefinePanel(isPanelOpen ? null : index)}
+                            disabled={isRefining}
+                            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
+                              isPanelOpen
+                                ? 'bg-purple-100 text-purple-600'
+                                : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                            }`}
+                            title="Refine this suggestion"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            <span className="text-xs hidden sm:inline">Refine</span>
+                          </button>
+                        </div>
                       </div>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => copyToClipboard(suggestion, index)}
+                        disabled={isRefining}
                       >
                         {copiedIndex === index ? (
                           <>
@@ -669,6 +759,59 @@ const ReplyHelper = () => {
                         )}
                       </Button>
                     </div>
+                    
+                    {/* Refine Panel */}
+                    {isPanelOpen && (
+                      <div className="mt-4 pt-4 border-t border-purple-200">
+                        <p className="text-xs font-medium text-purple-700 mb-2">Quick refinements:</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {refinementOptions.map((option) => (
+                            <button
+                              key={option.type}
+                              onClick={() => handleRefine(index, option.type)}
+                              disabled={isRefining}
+                              className="px-2.5 py-1.5 text-xs bg-white border border-purple-200 rounded-full hover:bg-purple-50 hover:border-purple-300 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <span>{option.emoji}</span>
+                              <span>{option.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        
+                        {/* Custom refinement input */}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={customRefineInput}
+                            onChange={(e) => setCustomRefineInput(e.target.value)}
+                            placeholder="Custom instruction, e.g. 'add an emoji' or 'make it edgier'"
+                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && customRefineInput.trim()) {
+                                handleRefine(index, 'custom', customRefineInput.trim());
+                              }
+                            }}
+                            disabled={isRefining}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (customRefineInput.trim()) {
+                                handleRefine(index, 'custom', customRefineInput.trim());
+                              }
+                            }}
+                            disabled={!customRefineInput.trim() || isRefining}
+                            className="bg-purple-600 hover:bg-purple-700"
+                          >
+                            {isRefining ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              'Apply'
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

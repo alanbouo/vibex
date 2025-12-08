@@ -278,3 +278,47 @@ export const getFeedbackStats = asyncHandler(async (req, res, next) => {
     data: { stats }
   });
 });
+
+/**
+ * @desc    Refine an AI-generated suggestion
+ * @route   POST /api/profiles/refine-suggestion
+ * @access  Private
+ */
+export const refineSuggestion = asyncHandler(async (req, res, next) => {
+  const { originalSuggestion, refinementType, customInstruction, originalContext } = req.body;
+
+  if (!originalSuggestion) {
+    return next(new AppError('Original suggestion is required', 400));
+  }
+
+  if (!refinementType) {
+    return next(new AppError('Refinement type is required', 400));
+  }
+
+  const validTypes = ['shorter', 'longer', 'funnier', 'professional', 'casual', 'question', 'direct', 'friendly', 'spicy', 'custom'];
+  if (!validTypes.includes(refinementType)) {
+    return next(new AppError(`Invalid refinement type. Must be one of: ${validTypes.join(', ')}`, 400));
+  }
+
+  if (refinementType === 'custom' && !customInstruction) {
+    return next(new AppError('Custom instruction is required for custom refinement type', 400));
+  }
+
+  const styleProfile = req.user.styleProfile || null;
+  const refined = await aiService.refineSuggestion(
+    originalSuggestion,
+    refinementType,
+    customInstruction,
+    styleProfile,
+    originalContext
+  );
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      original: originalSuggestion,
+      refined,
+      refinementType
+    }
+  });
+});
