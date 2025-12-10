@@ -290,7 +290,7 @@
     <!-- Stats -->
     <div class="section">
       <div class="section-title">Collected Data</div>
-      <div class="stats-grid">
+      <div class="stats-grid" style="grid-template-columns: 1fr 1fr 1fr;">
         <div class="stat-card">
           <div class="stat-value" id="postsCount">0</div>
           <div class="stat-label">Posts</div>
@@ -300,6 +300,11 @@
           <div class="stat-value" id="likesCount">0</div>
           <div class="stat-label">Likes</div>
           <div class="stat-updated" id="likesUpdated">Not collected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="repliesCount">0</div>
+          <div class="stat-label">Replies</div>
+          <div class="stat-updated" id="repliesUpdated">Not collected</div>
         </div>
       </div>
       <div class="sync-info">
@@ -320,6 +325,9 @@
             <span class="btn-icon">❤️</span> Collect Likes
           </button>
         </div>
+        <button class="btn btn-secondary" id="collectReplies">
+          <span class="btn-icon">💬</span> Collect All My Replies
+        </button>
         <button class="btn btn-secondary" id="openWriter">
           <span class="btn-icon">✨</span> AI Writing Assistant
         </button>

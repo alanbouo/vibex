@@ -54,6 +54,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
+  document.getElementById('collectReplies').addEventListener('click', async () => {
+    const tab = await getCurrentTab();
+    if (!isXPage(tab.url)) {
+      setStatus('warning', 'Please navigate to x.com first');
+      return;
+    }
+    
+    // Get username and navigate to search page for replies
+    const username = extractUsernameFromUrl(tab.url);
+    if (username) {
+      const searchQuery = `from:${username} filter:replies`;
+      const searchUrl = `https://x.com/search?q=${encodeURIComponent(searchQuery)}&src=typed_query&f=live`;
+      chrome.tabs.update(tab.id, { url: searchUrl });
+      setStatus('success', 'Navigating to replies search...');
+    } else {
+      setStatus('warning', 'Go to your profile page first');
+    }
+  });
+  
   document.getElementById('openWriter').addEventListener('click', async () => {
     const tab = await getCurrentTab();
     if (!isXPage(tab.url)) {
@@ -85,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   document.getElementById('clearData').addEventListener('click', () => {
     if (confirm('Are you sure you want to clear all collected data?')) {
-      chrome.storage.local.remove(['vibex_posts', 'vibex_likes', 'vibex_posts_updated', 'vibex_likes_updated'], () => {
+      chrome.storage.local.remove(['vibex_posts', 'vibex_likes', 'vibex_replies', 'vibex_posts_updated', 'vibex_likes_updated', 'vibex_replies_updated'], () => {
         loadStats();
         setStatus('success', 'Data cleared successfully');
       });
@@ -193,10 +212,11 @@ function extractUsernameFromUrl(url) {
 async function loadStats() {
   chrome.runtime.sendMessage({ action: 'getStorageStats' }, (response) => {
     if (response && response.success) {
-      const { postsCount, likesCount, postsUpdated, likesUpdated } = response.stats;
+      const { postsCount, likesCount, repliesCount, postsUpdated, likesUpdated, repliesUpdated } = response.stats;
       
       document.getElementById('postsCount').textContent = postsCount;
       document.getElementById('likesCount').textContent = likesCount;
+      document.getElementById('repliesCount').textContent = repliesCount || 0;
       
       document.getElementById('postsUpdated').textContent = postsUpdated 
         ? formatDate(postsUpdated) 
@@ -204,10 +224,14 @@ async function loadStats() {
       document.getElementById('likesUpdated').textContent = likesUpdated 
         ? formatDate(likesUpdated) 
         : 'Not collected';
+      document.getElementById('repliesUpdated').textContent = repliesUpdated 
+        ? formatDate(repliesUpdated) 
+        : 'Not collected';
         
       // Update status based on data
-      if (postsCount > 0 || likesCount > 0) {
-        setStatus('success', `${postsCount + likesCount} items collected`);
+      const totalCount = postsCount + likesCount + (repliesCount || 0);
+      if (totalCount > 0) {
+        setStatus('success', `${totalCount} items collected`);
       }
     }
   });
@@ -242,10 +266,11 @@ function setStatus(type, message) {
 
 async function getStorageData() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['vibex_posts', 'vibex_likes'], (result) => {
+    chrome.storage.local.get(['vibex_posts', 'vibex_likes', 'vibex_replies'], (result) => {
       resolve({
         posts: result.vibex_posts || [],
-        likes: result.vibex_likes || []
+        likes: result.vibex_likes || [],
+        replies: result.vibex_replies || []
       });
     });
   });
@@ -257,7 +282,8 @@ async function exportFromStorage() {
   const exportData = {
     exportedAt: new Date().toISOString(),
     posts: data.posts,
-    likes: data.likes
+    likes: data.likes,
+    replies: data.replies
   };
   
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
