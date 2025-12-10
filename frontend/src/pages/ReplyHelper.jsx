@@ -256,7 +256,9 @@ const ReplyHelper = () => {
   };
 
   const copyToClipboard = (text, index) => {
-    navigator.clipboard.writeText(text);
+    // Remove leading and trailing quotes if present
+    const cleanedText = text.replace(/^["']|["']$/g, '');
+    navigator.clipboard.writeText(cleanedText);
     setCopiedIndex(index);
     toast.success('Copied to clipboard!');
     setTimeout(() => setCopiedIndex(null), 2000);
