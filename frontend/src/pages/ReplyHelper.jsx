@@ -46,6 +46,9 @@ const ReplyHelper = () => {
   const [refiningIndex, setRefiningIndex] = useState(null); // Which suggestion is being refined
   const [showRefinePanel, setShowRefinePanel] = useState(null); // Which suggestion has refine panel open
   const [customRefineInput, setCustomRefineInput] = useState('');
+  const [showEditGeneratePanel, setShowEditGeneratePanel] = useState(null); // Which suggestion has edit & generate panel open
+  const [editedSuggestionText, setEditedSuggestionText] = useState('');
+  const [editGenerateInstruction, setEditGenerateInstruction] = useState('');
 
   // Load style profile on mount
   useEffect(() => {
@@ -201,6 +204,45 @@ const ReplyHelper = () => {
       toast.error(error.response?.data?.message || 'Failed to generate quotes');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditGenerate = async (index) => {
+    if (!editedSuggestionText.trim()) {
+      toast.error('Please enter a suggestion to build upon');
+      return;
+    }
+
+    setRefiningIndex(index);
+    setShowEditGeneratePanel(null);
+    
+    try {
+      const currentSuggestions = activeTab === 'replies' ? replies : quotes;
+      const originalSuggestion = currentSuggestions[index];
+      
+      const response = await profileAPI.editGenerateSuggestion({
+        type: activeTab,
+        editedSuggestion: editedSuggestionText.trim(),
+        instruction: editGenerateInstruction.trim(),
+        originalContext: tweetContent || null,
+        image: uploadedImage,
+        count: 3
+      });
+      
+      // Replace all suggestions with new ones
+      if (activeTab === 'replies') {
+        setReplies(response.data.data.suggestions);
+      } else {
+        setQuotes(response.data.data.suggestions);
+      }
+      
+      toast.success('Generated new suggestions!');
+      setEditedSuggestionText('');
+      setEditGenerateInstruction('');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to generate new suggestions');
+    } finally {
+      setRefiningIndex(null);
     }
   };
 
@@ -668,12 +710,15 @@ const ReplyHelper = () => {
                 const currentRating = ratedSuggestions[ratingKey];
                 const isRefining = refiningIndex === index;
                 const isPanelOpen = showRefinePanel === index;
+                const isEditPanelOpen = showEditGeneratePanel === index;
                 
                 return (
                   <div 
                     key={index}
                     className={`p-4 bg-gray-50 rounded-lg border transition-colors ${
-                      isPanelOpen ? 'border-purple-300 bg-purple-50/30' : 'border-gray-200 hover:border-blue-300'
+                      isPanelOpen ? 'border-purple-300 bg-purple-50/30' : 
+                      isEditPanelOpen ? 'border-blue-300 bg-blue-50/30' : 
+                      'border-gray-200 hover:border-blue-300'
                     }`}
                   >
                     {/* Suggestion text with loading overlay */}
@@ -725,8 +770,8 @@ const ReplyHelper = () => {
                             <ThumbsDown className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        {/* Refine button */}
-                        <div className="border-l pl-2 sm:pl-3 ml-1">
+                        {/* Refine and Edit & Generate buttons */}
+                        <div className="border-l pl-2 sm:pl-3 ml-1 flex gap-1">
                           <button
                             onClick={() => setShowRefinePanel(isPanelOpen ? null : index)}
                             disabled={isRefining}
@@ -739,6 +784,25 @@ const ReplyHelper = () => {
                           >
                             <Wand2 className="w-3.5 h-3.5" />
                             <span className="text-xs hidden sm:inline">Refine</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowEditGeneratePanel(isEditPanelOpen ? null : index);
+                              if (!isEditPanelOpen) {
+                                setEditedSuggestionText(suggestion);
+                                setEditGenerateInstruction('');
+                              }
+                            }}
+                            disabled={isRefining}
+                            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 ${
+                              isEditPanelOpen
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                            title="Edit & generate new suggestions"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span className="text-xs hidden sm:inline">Edit & Generate</span>
                           </button>
                         </div>
                       </div>
@@ -811,6 +875,54 @@ const ReplyHelper = () => {
                               'Apply'
                             )}
                           </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Edit & Generate Panel */}
+                    {isEditPanelOpen && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <p className="text-xs font-medium text-blue-700 mb-3">Edit the suggestion and add instructions to generate new ones:</p>
+                        
+                        <div className="space-y-3">
+                          <textarea
+                            value={editedSuggestionText}
+                            onChange={(e) => setEditedSuggestionText(e.target.value)}
+                            placeholder="Edit this suggestion..."
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            rows={3}
+                            disabled={isRefining}
+                          />
+                          
+                          <input
+                            type="text"
+                            value={editGenerateInstruction}
+                            onChange={(e) => setEditGenerateInstruction(e.target.value)}
+                            placeholder="Additional instructions (optional), e.g. 'make it funnier' or 'focus on the second point'"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && editedSuggestionText.trim()) {
+                                handleEditGenerate(index);
+                              }
+                            }}
+                            disabled={isRefining}
+                          />
+                          
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              onClick={() => handleEditGenerate(index)}
+                              disabled={!editedSuggestionText.trim() || isRefining}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
+                              {isRefining ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                              ) : (
+                                <Sparkles className="w-4 h-4 mr-1" />
+                              )}
+                              Generate New Suggestions
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}

@@ -280,6 +280,41 @@ export const getFeedbackStats = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * @desc    Edit and generate new suggestions based on a modified suggestion
+ * @route   POST /api/profiles/edit-generate-suggestion
+ * @access  Private
+ */
+export const editGenerateSuggestion = asyncHandler(async (req, res, next) => {
+  const { type, editedSuggestion, instruction, originalContext, image, count = 3 } = req.body;
+
+  if (!type || !editedSuggestion) {
+    return next(new AppError('Type and edited suggestion are required', 400));
+  }
+
+  if (!['reply', 'quote'].includes(type)) {
+    return next(new AppError('Type must be reply or quote', 400));
+  }
+
+  const styleProfile = req.user.styleProfile || null;
+  
+  let suggestions;
+  if (type === 'reply') {
+    suggestions = await aiService.generateReplies(originalContext, styleProfile, count, image, instruction, editedSuggestion);
+  } else {
+    suggestions = await aiService.generateQuotes(originalContext, styleProfile, count, image, instruction, editedSuggestion);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      suggestions,
+      usedStyle: !!styleProfile,
+      usedImage: !!image
+    }
+  });
+});
+
+/**
  * @desc    Refine an AI-generated suggestion
  * @route   POST /api/profiles/refine-suggestion
  * @access  Private
