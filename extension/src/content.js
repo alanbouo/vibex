@@ -42,7 +42,7 @@ function init() {
   // Detect page type and add appropriate UI
   const pageType = detectPageType();
   
-  if (pageType === 'profile' || pageType === 'likes' || pageType === 'tweet') {
+  if (pageType === 'profile' || pageType === 'likes' || pageType === 'tweet' || pageType === 'replies_search') {
     addCollectorUI();
   }
   
@@ -66,11 +66,14 @@ function init() {
 
 function detectPageType() {
   const path = window.location.pathname;
+  const urlParams = new URLSearchParams(window.location.search);
+  const query = urlParams.get('q') || '';
   
   if (path.includes('/likes')) return 'likes';
   if (path.includes('/status/')) return 'tweet'; // Can collect replies from tweet pages
   if (path === '/compose/tweet') return 'compose';
   if (path === '/home') return 'home';
+  if (path === '/search' && query.includes('filter:replies')) return 'replies_search'; // Search page for replies
   if (path.split('/').length === 2 && !['home', 'explore', 'notifications', 'messages', 'search'].includes(path.split('/')[1])) {
     return 'profile';
   }
@@ -387,6 +390,7 @@ function addCollectorUI() {
   const pageType = detectPageType();
   const isLikesPage = pageType === 'likes';
   const isTweetPage = pageType === 'tweet';
+  const isRepliesSearchPage = pageType === 'replies_search';
   
   const collector = document.createElement('div');
   collector.id = 'vibex-collector';
@@ -400,10 +404,10 @@ function addCollectorUI() {
       <button class="vibex-close" id="vibex-collector-close">&times;</button>
     </div>
     <div class="vibex-collector-body">
-      <p class="vibex-collector-status" id="vibex-status">Ready to collect fresh ${isLikesPage ? 'likes' : isTweetPage ? 'replies' : 'posts'}</p>
+      <p class="vibex-collector-status" id="vibex-status">Ready to collect fresh ${isLikesPage ? 'likes' : isTweetPage ? 'replies' : isRepliesSearchPage ? 'all replies' : 'posts'}</p>
       <div class="vibex-collector-actions">
         <button class="vibex-btn vibex-btn-primary" id="vibex-collect-btn">
-          ${isLikesPage ? '❤️ Collect Fresh Likes' : isTweetPage ? '💬 Collect Fresh Replies' : '📝 Collect Fresh Posts'}
+          ${isLikesPage ? '❤️ Collect Fresh Likes' : isTweetPage ? '💬 Collect Fresh Replies' : isRepliesSearchPage ? '💬 Collect All My Replies' : '📝 Collect Fresh Posts'}
         </button>
         <button class="vibex-btn vibex-btn-secondary" id="vibex-export-btn">
           📥 Export JSON
@@ -421,7 +425,7 @@ function addCollectorUI() {
   
   // Event listeners
   document.getElementById('vibex-collect-btn').addEventListener('click', () => {
-    const type = isLikesPage ? 'likes' : isTweetPage ? 'replies' : 'posts';
+    const type = isLikesPage ? 'likes' : (isTweetPage || isRepliesSearchPage) ? 'replies' : 'posts';
     collectAllPosts(type);
   });
   
@@ -463,7 +467,8 @@ function toggleVibexMenu() {
   const pageType = detectPageType();
   const showCollectPosts = pageType === 'profile';
   const showCollectLikes = pageType === 'profile' || pageType === 'likes';
-  const showCollectReplies = pageType === 'tweet';
+  const showCollectReplies = pageType === 'tweet' || pageType === 'replies_search';
+  const showCollectAllReplies = pageType === 'profile';
   
   menu = document.createElement('div');
   menu.id = 'vibex-menu';
@@ -477,6 +482,9 @@ function toggleVibexMenu() {
     </button>` : ''}
     ${showCollectReplies ? `<button class="vibex-menu-item" id="vibex-menu-replies">
       💬 Collect Fresh Replies
+    </button>` : ''}
+    ${showCollectAllReplies ? `<button class="vibex-menu-item" id="vibex-menu-all-replies">
+      💬 Collect All My Replies
     </button>` : ''}
     <button class="vibex-menu-item" id="vibex-menu-writer">
       ✍️ AI Writer
@@ -516,6 +524,19 @@ function toggleVibexMenu() {
     document.getElementById('vibex-menu-replies').addEventListener('click', () => {
       menu.remove();
       collectAllPosts('replies');
+    });
+  }
+  
+  if (showCollectAllReplies) {
+    document.getElementById('vibex-menu-all-replies').addEventListener('click', () => {
+      menu.remove();
+      // Navigate to search page for all replies
+      const username = extractUsername();
+      if (username) {
+        const searchQuery = `from:${username} filter:replies`;
+        const searchUrl = `https://x.com/search?q=${encodeURIComponent(searchQuery)}&src=typed_query&f=live`;
+        window.location.href = searchUrl;
+      }
     });
   }
   
@@ -650,11 +671,14 @@ async function generatePost() {
   generateBtn.textContent = '⏳ Generating...';
   
   try {
-    // Get sample posts if using personal style
+    // Get sample posts and replies if using personal style
     let samplePosts = [];
     if (useMyStyle) {
       const posts = await loadCollectedData('posts');
-      samplePosts = posts.slice(0, 10).map(p => p.text);
+      const replies = await loadCollectedData('replies');
+      // Combine posts and replies for better style training
+      const allContent = [...posts, ...replies];
+      samplePosts = allContent.slice(0, 15).map(p => p.text);
     }
     
     // Send to background script for AI generation

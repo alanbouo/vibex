@@ -9,6 +9,7 @@ This extension allows you to collect your posts and likes directly from X withou
 ### Data Collection (No API Required)
 - **Collect Your Posts**: Automatically scroll and collect all your tweets from your profile
 - **Collect Your Likes**: Collect all posts you've liked
+- **Collect Your Replies**: Collect all your replies from any individual tweet page, or collect ALL your replies using the search feature
 - **Export to JSON**: Download your collected data for backup or analysis
 - **Local Storage**: All data is stored locally in your browser
 
@@ -64,12 +65,22 @@ This will automatically rebuild when you make changes.
 2. Click "Collect Likes"
 3. The extension will scroll and collect all liked posts
 
+### Collecting All Your Replies
+
+1. Navigate to your X profile (x.com/yourusername)
+2. Click the Vibex floating button and select "💬 Collect All My Replies"
+3. The extension will automatically navigate to X's search page with your replies filter
+4. Click "💬 Collect All My Replies" on the search page
+5. The extension will scroll through all your historical replies and collect them
+
+**Note**: This collects ALL your replies across your entire X history, making it perfect for LLM fine-tuning with your authentic writing style.
+
 ### Using the AI Writer
 
 1. Click the Vibex button and select "AI Writer"
 2. Enter a topic you want to write about
 3. Select tone and style
-4. Optionally check "Match my writing style" to use your collected posts
+4. Optionally check "Match my writing style" to use your collected posts and replies for style training
 5. Click "Generate Post"
 6. Copy or insert the generated text
 
@@ -78,6 +89,7 @@ This will automatically rebuild when you make changes.
 All collected data is stored locally in Chrome's storage:
 - `vibex_posts`: Your collected posts
 - `vibex_likes`: Your collected likes
+- `vibex_replies`: Your collected replies
 - Timestamps for last collection
 
 ## Privacy
