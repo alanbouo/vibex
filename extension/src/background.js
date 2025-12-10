@@ -334,7 +334,7 @@ async function syncDataToBackend(data) {
     throw new Error('Not authenticated. Please log in to the Vibex dashboard first.');
   }
 
-  console.log('Sync: Sending', data.posts?.length || 0, 'posts and', data.likes?.length || 0, 'likes');
+  console.log('Sync: Sending', data.posts?.length || 0, 'posts and', data.likes?.length || 0, 'likes and', data.replies?.length || 0, 'replies');
 
   // Use the new import-extension-data endpoint with timeout
   let response;
@@ -347,7 +347,8 @@ async function syncDataToBackend(data) {
       },
       body: JSON.stringify({
         posts: data.posts || [],
-        likes: data.likes || []
+        likes: data.likes || [],
+        replies: data.replies || []
       })
     }, 30000); // 30 second timeout for sync
   } catch (error) {
@@ -374,7 +375,7 @@ async function syncDataToBackend(data) {
     type: 'basic',
     iconUrl: 'icons/icon48.png',
     title: 'Vibex Sync Complete',
-    message: `Imported ${result.data?.postsImported || 0} posts and ${result.data?.likesImported || 0} likes!`
+    message: `Imported ${result.data?.postsImported || 0} posts, ${result.data?.likesImported || 0} likes, and ${result.data?.repliesImported || 0} replies!`
   });
 
   return result;
@@ -382,12 +383,14 @@ async function syncDataToBackend(data) {
 
 async function getStorageStats() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['vibex_posts', 'vibex_likes', 'vibex_posts_updated', 'vibex_likes_updated'], (result) => {
+    chrome.storage.local.get(['vibex_posts', 'vibex_likes', 'vibex_replies', 'vibex_posts_updated', 'vibex_likes_updated', 'vibex_replies_updated'], (result) => {
       resolve({
         postsCount: (result.vibex_posts || []).length,
         likesCount: (result.vibex_likes || []).length,
+        repliesCount: (result.vibex_replies || []).length,
         postsUpdated: result.vibex_posts_updated || null,
-        likesUpdated: result.vibex_likes_updated || null
+        likesUpdated: result.vibex_likes_updated || null,
+        repliesUpdated: result.vibex_replies_updated || null
       });
     });
   });

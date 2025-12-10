@@ -439,10 +439,11 @@ Write content that sounds authentically like them - use their vocabulary, match 
    * @param {Object} styleProfile - User's writing style profile
    * @param {number} count - Number of replies to generate
    * @param {string} imageBase64 - Optional base64 encoded image of the tweet
-   * @param {string} guidance - Optional user guidance to steer the AI
+   * @param {string} contentGuidance - Optional content focus guidance
+   * @param {string} toneGuidance - Optional tone/approach guidance
    * @param {string} baseSuggestion - Optional edited suggestion to build upon
    */
-  async generateReplies(tweetContent, styleProfile, count = 3, imageBase64 = null, guidance = null, baseSuggestion = null) {
+  async generateReplies(tweetContent, styleProfile, count = 3, imageBase64 = null, contentGuidance = null, toneGuidance = null, baseSuggestion = null) {
     try {
       const styleContext = styleProfile ? `
 Match this writing style:
@@ -451,10 +452,14 @@ Match this writing style:
 - Emoji usage: ${styleProfile.emojiUsage}
 ` : '';
 
-      const guidanceContext = guidance ? `
-IMPORTANT - User's guidance for this reply: "${guidance}"
-Follow this direction while crafting the replies.
-` : '';
+      let guidanceContext = '';
+      if (contentGuidance || toneGuidance) {
+        guidanceContext = `
+IMPORTANT - User's guidance for this reply:`;
+        if (contentGuidance) guidanceContext += `\n- Content focus: "${contentGuidance}"`;
+        if (toneGuidance) guidanceContext += `\n- Tone/approach: "${toneGuidance}"`;
+        guidanceContext += `\nFollow this direction while crafting the replies.`;
+      }
 
       const systemPrompt = `You are helping a user craft engaging replies on Twitter. Generate ${count} different reply options that are authentic and likely to get engagement.
 ${styleContext}${guidanceContext}
@@ -464,7 +469,12 @@ Each reply should be under 280 characters. Make them conversational and add valu
       
       if (imageBase64) {
         // Use vision model with image
-        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
+        let guidanceNote = '';
+        if (contentGuidance || toneGuidance) {
+          guidanceNote = '\n\nUser\'s guidance:';
+          if (contentGuidance) guidanceNote += ` Content focus: "${contentGuidance}"`;
+          if (toneGuidance) guidanceNote += ` Tone/approach: "${toneGuidance}"`;
+        }
         const baseNote = baseSuggestion ? `\n\nBuild upon this existing suggestion: "${baseSuggestion}"` : '';
         const imagePrompt = tweetContent 
           ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"${guidanceNote}${baseNote}\n\nGenerate ${count} reply options that:
@@ -490,7 +500,12 @@ Each reply should be under 280 characters. Make them conversational and add valu
           }
         ];
       } else {
-        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
+        let guidanceNote = '';
+        if (contentGuidance || toneGuidance) {
+          guidanceNote = '\n\nUser\'s guidance:';
+          if (contentGuidance) guidanceNote += ` Content focus: "${contentGuidance}"`;
+          if (toneGuidance) guidanceNote += ` Tone/approach: "${toneGuidance}"`;
+        }
         const baseNote = baseSuggestion ? `\n\nBuild upon this existing suggestion: "${baseSuggestion}"` : '';
         userContent = `Generate ${count} reply options for this tweet:
 
@@ -522,10 +537,15 @@ Provide replies that:
 
   /**
    * Generate quote tweet suggestions
-   * @param {string} guidance - Optional user guidance to steer the AI
+   * @param {string} tweetContent - The tweet text to quote
+   * @param {Object} styleProfile - User's writing style profile
+   * @param {number} count - Number of quotes to generate
+   * @param {string} imageBase64 - Optional base64 encoded image of the tweet
+   * @param {string} contentGuidance - Optional content focus guidance
+   * @param {string} toneGuidance - Optional tone/approach guidance
    * @param {string} baseSuggestion - Optional edited suggestion to build upon
    */
-  async generateQuotes(tweetContent, styleProfile, count = 3, imageBase64 = null, guidance = null, baseSuggestion = null) {
+  async generateQuotes(tweetContent, styleProfile, count = 3, imageBase64 = null, contentGuidance = null, toneGuidance = null, baseSuggestion = null) {
     try {
       const styleContext = styleProfile ? `
 Match this writing style:
@@ -533,10 +553,14 @@ Match this writing style:
 - Topics: ${styleProfile.topics?.slice(0, 3).join(', ')}
 ` : '';
 
-      const guidanceContext = guidance ? `
-IMPORTANT - User's guidance for this quote: "${guidance}"
-Follow this direction while crafting the quotes.
-` : '';
+      let guidanceContext = '';
+      if (contentGuidance || toneGuidance) {
+        guidanceContext = `
+IMPORTANT - User's guidance for this quote:`;
+        if (contentGuidance) guidanceContext += `\n- Content focus: "${contentGuidance}"`;
+        if (toneGuidance) guidanceContext += `\n- Tone/approach: "${toneGuidance}"`;
+        guidanceContext += `\nFollow this direction while crafting the quotes.`;
+      }
 
       const systemPrompt = `You are helping a user create engaging quote tweets. Generate ${count} different quote tweet options that add unique perspective or value.
 ${styleContext}${guidanceContext}
@@ -546,7 +570,12 @@ Each should be under 200 characters (leaving room for the quoted tweet). Make th
       
       if (imageBase64) {
         // Use vision model with image
-        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
+        let guidanceNote = '';
+        if (contentGuidance || toneGuidance) {
+          guidanceNote = '\n\nUser\'s guidance:';
+          if (contentGuidance) guidanceNote += ` Content focus: "${contentGuidance}"`;
+          if (toneGuidance) guidanceNote += ` Tone/approach: "${toneGuidance}"`;
+        }
         const baseNote = baseSuggestion ? `\n\nBuild upon this existing suggestion: "${baseSuggestion}"` : '';
         const imagePrompt = tweetContent 
           ? `Look at this screenshot of a tweet and consider this additional context: "${tweetContent}"${guidanceNote}${baseNote}\n\nGenerate ${count} quote tweet options that:
@@ -572,7 +601,12 @@ Each should be under 200 characters (leaving room for the quoted tweet). Make th
           }
         ];
       } else {
-        const guidanceNote = guidance ? `\n\nUser's guidance: "${guidance}"` : '';
+        let guidanceNote = '';
+        if (contentGuidance || toneGuidance) {
+          guidanceNote = '\n\nUser\'s guidance:';
+          if (contentGuidance) guidanceNote += ` Content focus: "${contentGuidance}"`;
+          if (toneGuidance) guidanceNote += ` Tone/approach: "${toneGuidance}"`;
+        }
         const baseNote = baseSuggestion ? `\n\nBuild upon this existing suggestion: "${baseSuggestion}"` : '';
         userContent = `Generate ${count} quote tweet options for this tweet:
 

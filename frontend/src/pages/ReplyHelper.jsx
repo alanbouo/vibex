@@ -28,7 +28,8 @@ import { profileAPI } from '../services/api';
 const ReplyHelper = () => {
   const { user } = useAuthStore();
   const [tweetContent, setTweetContent] = useState('');
-  const [guidance, setGuidance] = useState(''); // Custom guidance for AI
+  const [contentGuidance, setContentGuidance] = useState(''); // Content focus guidance for AI
+  const [toneGuidance, setToneGuidance] = useState(''); // Tone/approach guidance for AI
   const [replies, setReplies] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -167,7 +168,10 @@ const ReplyHelper = () => {
         tweetContent: tweetContent.trim(),
         count: 3,
         image: uploadedImage,
-        guidance: guidance.trim() || undefined
+        guidance: {
+          content: contentGuidance.trim() || undefined,
+          tone: toneGuidance.trim() || undefined
+        }
       });
       setReplies(response.data.data.replies);
       setActiveTab('replies');
@@ -193,7 +197,10 @@ const ReplyHelper = () => {
         tweetContent: tweetContent.trim(),
         count: 3,
         image: uploadedImage,
-        guidance: guidance.trim() || undefined
+        guidance: {
+          content: contentGuidance.trim() || undefined,
+          tone: toneGuidance.trim() || undefined
+        }
       });
       setQuotes(response.data.data.quotes);
       setActiveTab('quotes');
@@ -631,22 +638,41 @@ const ReplyHelper = () => {
             </button>
           )}
 
-          {/* Guidance Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Guidance <span className="font-normal text-gray-400">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={guidance}
-              onChange={(e) => setGuidance(e.target.value)}
-              placeholder="e.g., be funny, ask a question, share a contrarian take..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              maxLength={100}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Steer the AI's tone or approach
-            </p>
+          {/* Guidance Inputs */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Content Focus <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={contentGuidance}
+                onChange={(e) => setContentGuidance(e.target.value)}
+                placeholder="e.g., ask a question, share a contrarian take, focus on the second point..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                maxLength={100}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                What content or approach to include
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tone/Approach <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={toneGuidance}
+                onChange={(e) => setToneGuidance(e.target.value)}
+                placeholder="e.g., be funny, professional, casual, sarcastic..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                maxLength={100}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                The tone or style of the response
+              </p>
+            </div>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3">

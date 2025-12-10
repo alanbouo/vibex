@@ -45,7 +45,14 @@ export const generateReplies = asyncHandler(async (req, res, next) => {
   }
 
   const styleProfile = req.user.styleProfile || null;
-  const replies = await aiService.generateReplies(tweetContent, styleProfile, count, image, guidance);
+  const replies = await aiService.generateReplies(
+    tweetContent, 
+    styleProfile, 
+    count, 
+    image, 
+    guidance?.content, 
+    guidance?.tone
+  );
 
   res.status(200).json({
     status: 'success',
@@ -71,7 +78,14 @@ export const generateQuotes = asyncHandler(async (req, res, next) => {
   }
 
   const styleProfile = req.user.styleProfile || null;
-  const quotes = await aiService.generateQuotes(tweetContent, styleProfile, count, image, guidance);
+  const quotes = await aiService.generateQuotes(
+    tweetContent, 
+    styleProfile, 
+    count, 
+    image, 
+    guidance?.content, 
+    guidance?.tone
+  );
 
   res.status(200).json({
     status: 'success',
@@ -299,9 +313,9 @@ export const editGenerateSuggestion = asyncHandler(async (req, res, next) => {
   
   let suggestions;
   if (type === 'reply') {
-    suggestions = await aiService.generateReplies(originalContext, styleProfile, count, image, instruction, editedSuggestion);
+    suggestions = await aiService.generateReplies(originalContext, styleProfile, count, image, instruction, null, editedSuggestion);
   } else {
-    suggestions = await aiService.generateQuotes(originalContext, styleProfile, count, image, instruction, editedSuggestion);
+    suggestions = await aiService.generateQuotes(originalContext, styleProfile, count, image, instruction, null, editedSuggestion);
   }
 
   res.status(200).json({

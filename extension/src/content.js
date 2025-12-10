@@ -29,6 +29,7 @@ const CONFIG = {
 let isCollecting = false;
 let collectedPosts = [];
 let collectedLikes = [];
+let collectedReplies = [];
 let writerPanel = null;
 
 // ==========================================
@@ -41,7 +42,7 @@ function init() {
   // Detect page type and add appropriate UI
   const pageType = detectPageType();
   
-  if (pageType === 'profile' || pageType === 'likes') {
+  if (pageType === 'profile' || pageType === 'likes' || pageType === 'tweet') {
     addCollectorUI();
   }
   
@@ -67,7 +68,7 @@ function detectPageType() {
   const path = window.location.pathname;
   
   if (path.includes('/likes')) return 'likes';
-  if (path.includes('/status/')) return 'tweet';
+  if (path.includes('/status/')) return 'tweet'; // Can collect replies from tweet pages
   if (path === '/compose/tweet') return 'compose';
   if (path === '/home') return 'home';
   if (path.split('/').length === 2 && !['home', 'explore', 'notifications', 'messages', 'search'].includes(path.split('/')[1])) {
@@ -243,7 +244,7 @@ async function collectAllPosts(type = 'posts') {
   }
   
   isCollecting = true;
-  const collection = type === 'likes' ? collectedLikes : collectedPosts;
+  const collection = type === 'likes' ? collectedLikes : type === 'replies' ? collectedReplies : collectedPosts;
   const seenIds = new Set(collection.map(p => p.id));
   let noNewPostsCount = 0;
   let lastScrollHeight = 0;
@@ -264,6 +265,14 @@ async function collectAllPosts(type = 'posts') {
         // Only collect posts newer than the cutoff date
         const tweetDate = new Date(tweet.timestamp);
         if (!isNaN(tweetDate.getTime()) && tweetDate > cutoffDate) {
+          // For replies, only collect tweets that are actually replies
+          if (type === 'replies' && tweet.type !== 'reply') {
+            return; // Skip non-reply tweets when collecting replies
+          }
+          // For posts, skip replies (only collect original posts)
+          if (type === 'posts' && tweet.type === 'reply') {
+            return; // Skip replies when collecting posts
+          }
           seenIds.add(tweet.id);
           collection.push(tweet);
           newCount++;
@@ -332,7 +341,7 @@ function sleep(ms) {
 // ==========================================
 
 function saveCollectedData(type, data) {
-  const key = type === 'likes' ? 'vibex_likes' : 'vibex_posts';
+  const key = type === 'likes' ? 'vibex_likes' : type === 'replies' ? 'vibex_replies' : 'vibex_posts';
   const storageData = {
     [key]: data,
     [`${key}_updated`]: new Date().toISOString()
@@ -351,7 +360,7 @@ function saveCollectedData(type, data) {
 
 function loadCollectedData(type) {
   return new Promise((resolve) => {
-    const key = type === 'likes' ? 'vibex_likes' : 'vibex_posts';
+    const key = type === 'likes' ? 'vibex_likes' : type === 'replies' ? 'vibex_replies' : 'vibex_posts';
     chrome.storage.local.get([key], (result) => {
       resolve(result[key] || []);
     });
@@ -360,7 +369,7 @@ function loadCollectedData(type) {
 
 function getLastCollectionTime(type) {
   return new Promise((resolve) => {
-    const key = type === 'likes' ? 'vibex_likes_updated' : 'vibex_posts_updated';
+    const key = type === 'likes' ? 'vibex_likes_updated' : type === 'replies' ? 'vibex_replies_updated' : 'vibex_posts_updated';
     chrome.storage.local.get([key], (result) => {
       const timestamp = result[key];
       resolve(timestamp ? new Date(timestamp) : null);
@@ -377,6 +386,7 @@ function addCollectorUI() {
   
   const pageType = detectPageType();
   const isLikesPage = pageType === 'likes';
+  const isTweetPage = pageType === 'tweet';
   
   const collector = document.createElement('div');
   collector.id = 'vibex-collector';
@@ -390,10 +400,10 @@ function addCollectorUI() {
       <button class="vibex-close" id="vibex-collector-close">&times;</button>
     </div>
     <div class="vibex-collector-body">
-      <p class="vibex-collector-status" id="vibex-status">Ready to collect fresh ${isLikesPage ? 'likes' : 'posts'}</p>
+      <p class="vibex-collector-status" id="vibex-status">Ready to collect fresh ${isLikesPage ? 'likes' : isTweetPage ? 'replies' : 'posts'}</p>
       <div class="vibex-collector-actions">
         <button class="vibex-btn vibex-btn-primary" id="vibex-collect-btn">
-          ${isLikesPage ? '❤️ Collect Fresh Likes' : '📝 Collect Fresh Posts'}
+          ${isLikesPage ? '❤️ Collect Fresh Likes' : isTweetPage ? '💬 Collect Fresh Replies' : '📝 Collect Fresh Posts'}
         </button>
         <button class="vibex-btn vibex-btn-secondary" id="vibex-export-btn">
           📥 Export JSON
@@ -402,6 +412,7 @@ function addCollectorUI() {
       <div class="vibex-collector-stats" id="vibex-stats">
         <span>Posts: <strong id="vibex-posts-count">0</strong></span>
         <span>Likes: <strong id="vibex-likes-count">0</strong></span>
+        <span>Replies: <strong id="vibex-replies-count">0</strong></span>
       </div>
     </div>
   `;
@@ -410,7 +421,8 @@ function addCollectorUI() {
   
   // Event listeners
   document.getElementById('vibex-collect-btn').addEventListener('click', () => {
-    collectAllPosts(isLikesPage ? 'likes' : 'posts');
+    const type = isLikesPage ? 'likes' : isTweetPage ? 'replies' : 'posts';
+    collectAllPosts(type);
   });
   
   document.getElementById('vibex-export-btn').addEventListener('click', exportData);
@@ -448,16 +460,24 @@ function toggleVibexMenu() {
     return;
   }
   
+  const pageType = detectPageType();
+  const showCollectPosts = pageType === 'profile';
+  const showCollectLikes = pageType === 'profile' || pageType === 'likes';
+  const showCollectReplies = pageType === 'tweet';
+  
   menu = document.createElement('div');
   menu.id = 'vibex-menu';
   menu.className = 'vibex-menu';
   menu.innerHTML = `
-    <button class="vibex-menu-item" id="vibex-menu-collect">
+    ${showCollectPosts ? `<button class="vibex-menu-item" id="vibex-menu-collect">
       📝 Collect Fresh Posts
-    </button>
-    <button class="vibex-menu-item" id="vibex-menu-likes">
+    </button>` : ''}
+    ${showCollectLikes ? `<button class="vibex-menu-item" id="vibex-menu-likes">
       ❤️ Collect Fresh Likes
-    </button>
+    </button>` : ''}
+    ${showCollectReplies ? `<button class="vibex-menu-item" id="vibex-menu-replies">
+      💬 Collect Fresh Replies
+    </button>` : ''}
     <button class="vibex-menu-item" id="vibex-menu-writer">
       ✍️ AI Writer
     </button>
@@ -472,21 +492,32 @@ function toggleVibexMenu() {
   document.body.appendChild(menu);
   
   // Event listeners
-  document.getElementById('vibex-menu-collect').addEventListener('click', () => {
-    menu.remove();
-    collectAllPosts('posts');
-  });
+  if (showCollectPosts) {
+    document.getElementById('vibex-menu-collect').addEventListener('click', () => {
+      menu.remove();
+      collectAllPosts('posts');
+    });
+  }
   
-  document.getElementById('vibex-menu-likes').addEventListener('click', () => {
-    menu.remove();
-    // Navigate to likes page if not there
-    const username = extractUsername();
-    if (username && !window.location.pathname.includes('/likes')) {
-      window.location.href = `https://x.com/${username}/likes`;
-    } else {
-      collectAllPosts('likes');
-    }
-  });
+  if (showCollectLikes) {
+    document.getElementById('vibex-menu-likes').addEventListener('click', () => {
+      menu.remove();
+      // Navigate to likes page if not there
+      const username = extractUsername();
+      if (username && !window.location.pathname.includes('/likes')) {
+        window.location.href = `https://x.com/${username}/likes`;
+      } else {
+        collectAllPosts('likes');
+      }
+    });
+  }
+  
+  if (showCollectReplies) {
+    document.getElementById('vibex-menu-replies').addEventListener('click', () => {
+      menu.remove();
+      collectAllPosts('replies');
+    });
+  }
   
   document.getElementById('vibex-menu-writer').addEventListener('click', () => {
     menu.remove();
@@ -697,26 +728,32 @@ function updateCollectorStatus(message) {
 async function updateStorageCounts() {
   const posts = await loadCollectedData('posts');
   const likes = await loadCollectedData('likes');
+  const replies = await loadCollectedData('replies');
   
   const postsCount = document.getElementById('vibex-posts-count');
   const likesCount = document.getElementById('vibex-likes-count');
+  const repliesCount = document.getElementById('vibex-replies-count');
   
   if (postsCount) postsCount.textContent = posts.length;
   if (likesCount) likesCount.textContent = likes.length;
+  if (repliesCount) repliesCount.textContent = replies.length;
   
   // Update global state
   collectedPosts = posts;
   collectedLikes = likes;
+  collectedReplies = replies;
 }
 
 async function exportData() {
   const posts = await loadCollectedData('posts');
   const likes = await loadCollectedData('likes');
+  const replies = await loadCollectedData('replies');
   
   const data = {
     exportedAt: new Date().toISOString(),
     posts: posts,
-    likes: likes
+    likes: likes,
+    replies: replies
   };
   
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -744,9 +781,13 @@ function handleMessage(request, sender, sendResponse) {
       collectAllPosts('likes').then(data => sendResponse({ success: true, count: data.length }));
       return true;
       
+    case 'collectReplies':
+      collectAllPosts('replies').then(data => sendResponse({ success: true, count: data.length }));
+      return true;
+      
     case 'getCollectedData':
-      Promise.all([loadCollectedData('posts'), loadCollectedData('likes')])
-        .then(([posts, likes]) => sendResponse({ posts, likes }));
+      Promise.all([loadCollectedData('posts'), loadCollectedData('likes'), loadCollectedData('replies')])
+        .then(([posts, likes, replies]) => sendResponse({ posts, likes, replies }));
       return true;
       
     case 'openWriter':
