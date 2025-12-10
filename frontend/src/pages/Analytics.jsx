@@ -83,7 +83,7 @@ const Analytics = () => {
     );
   }
 
-  const { summary, averages, postTypes, topPosts, weeklyTrend } = analytics;
+  const { summary, averages, postTypes, topPosts } = analytics;
 
   return (
     <div className="space-y-6">
@@ -182,91 +182,94 @@ const Analytics = () => {
         </Card>
       </div>
 
-      {/* Weekly Trend Chart */}
-      {weeklyTrend && weeklyTrend.length > 0 && (
+      {/* Post Performance Chart - Shows individual post engagement */}
+      {topPosts && topPosts.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Weekly Trend</CardTitle>
+              <CardTitle>Post Performance</CardTitle>
               <div className="flex items-center gap-4 text-xs">
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-blue-500 rounded"></span> Posts
+                  <span className="w-3 h-3 bg-red-500 rounded"></span> Likes
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 bg-purple-500 rounded"></span> Engagement %
+                  <span className="w-3 h-3 bg-green-500 rounded"></span> Retweets
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-3 h-3 bg-blue-500 rounded"></span> Replies
                 </span>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              {/* Bar chart for posts and line overlay for engagement */}
-              <div className="flex items-end justify-between h-48 gap-1 px-2">
-                {weeklyTrend.map((week, index) => {
-                  const maxPosts = Math.max(...weeklyTrend.map(w => w.posts), 1);
-                  const maxEng = Math.max(...weeklyTrend.map(w => w.engagementRate), 1);
-                  const postHeight = (week.posts / maxPosts) * 100;
-                  const engHeight = (week.engagementRate / maxEng) * 100;
-                  
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center group relative">
-                      {/* Tooltip */}
-                      <div className="absolute -top-20 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                        <div className="bg-gray-900 text-white text-xs px-3 py-2 rounded shadow-lg whitespace-nowrap">
-                          <p className="font-medium">{week.weekLabel}</p>
-                          <p>{week.posts} posts</p>
-                          <p>{formatNumber(week.impressions)} impressions</p>
-                          <p>{week.engagementRate.toFixed(2)}% engagement</p>
-                        </div>
-                      </div>
-                      
-                      {/* Bars container */}
-                      <div className="w-full h-full flex items-end justify-center gap-0.5">
-                        {/* Posts bar */}
-                        <div 
-                          className="w-1/2 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all hover:from-blue-700 hover:to-blue-500"
-                          style={{ height: `${Math.max(postHeight, 4)}%` }}
-                        />
-                        {/* Engagement bar */}
-                        <div 
-                          className="w-1/2 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t transition-all hover:from-purple-700 hover:to-purple-500"
-                          style={{ height: `${Math.max(engHeight, 4)}%` }}
-                        />
-                      </div>
+            <p className="text-xs text-gray-500 mb-4">Top posts ranked by total engagement (likes + retweets + replies)</p>
+            <div className="space-y-3">
+              {topPosts.slice(0, 5).map((post, index) => {
+                const likes = post.metrics?.like_count || 0;
+                const retweets = post.metrics?.retweet_count || 0;
+                const replies = post.metrics?.reply_count || 0;
+                const total = likes + retweets + replies;
+                const maxTotal = Math.max(...topPosts.map(p => 
+                  (p.metrics?.like_count || 0) + (p.metrics?.retweet_count || 0) + (p.metrics?.reply_count || 0)
+                ), 1);
+                
+                return (
+                  <div key={index} className="group">
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="text-xs font-medium text-gray-400 w-4">#{index + 1}</span>
+                      <p className="text-xs text-gray-600 flex-1 truncate" title={post.content}>
+                        {post.content?.slice(0, 60)}{post.content?.length > 60 ? '...' : ''}
+                      </p>
+                      <span className="text-xs font-medium text-gray-700">{total} total</span>
                     </div>
-                  );
-                })}
-              </div>
-              {/* X-axis labels */}
-              <div className="flex justify-between px-2 mt-2">
-                {weeklyTrend.map((week, index) => (
-                  <div key={index} className="flex-1 text-center">
-                    <span className="text-[10px] text-gray-500">{week.weekLabel}</span>
+                    {/* Stacked bar */}
+                    <div className="flex items-center gap-3">
+                      <span className="w-4"></span>
+                      <div className="flex-1 h-6 bg-gray-100 rounded-lg overflow-hidden flex">
+                        {total > 0 ? (
+                          <>
+                            <div 
+                              className="h-full bg-red-500 flex items-center justify-center text-[10px] text-white font-medium"
+                              style={{ width: `${(likes / maxTotal) * 100}%` }}
+                              title={`${likes} likes`}
+                            >
+                              {likes > 0 && likes}
+                            </div>
+                            <div 
+                              className="h-full bg-green-500 flex items-center justify-center text-[10px] text-white font-medium"
+                              style={{ width: `${(retweets / maxTotal) * 100}%` }}
+                              title={`${retweets} retweets`}
+                            >
+                              {retweets > 0 && retweets}
+                            </div>
+                            <div 
+                              className="h-full bg-blue-500 flex items-center justify-center text-[10px] text-white font-medium"
+                              style={{ width: `${(replies / maxTotal) * 100}%` }}
+                              title={`${replies} replies`}
+                            >
+                              {replies > 0 && replies}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-xs text-gray-400">
+                            No engagement data
+                          </div>
+                        )}
+                      </div>
+                      {post.url && (
+                        <a 
+                          href={post.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-gray-400 hover:text-blue-600"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Summary row */}
-            <div className="grid grid-cols-4 gap-4 pt-4 mt-4 border-t">
-              <div className="text-center">
-                <p className="text-lg font-bold text-blue-600">{weeklyTrend.reduce((sum, w) => sum + w.posts, 0)}</p>
-                <p className="text-xs text-gray-500">Total Posts</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-cyan-600">{formatNumber(weeklyTrend.reduce((sum, w) => sum + w.impressions, 0))}</p>
-                <p className="text-xs text-gray-500">Impressions</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-red-600">{formatNumber(weeklyTrend.reduce((sum, w) => sum + w.likes, 0))}</p>
-                <p className="text-xs text-gray-500">Likes</p>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-purple-600">
-                  {(weeklyTrend.reduce((sum, w) => sum + w.engagementRate, 0) / weeklyTrend.length).toFixed(2)}%
-                </p>
-                <p className="text-xs text-gray-500">Avg Engagement</p>
-              </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -343,12 +346,13 @@ const Analytics = () => {
         </Card>
       </div>
 
-      {/* Top Performing Posts */}
+      {/* Top Performing Posts - Full Content View */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Performing Posts</CardTitle>
+          <CardTitle>Top Posts - Full Content</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-xs text-gray-500 mb-4">Click the link icon to view the original post on X</p>
           {topPosts.length > 0 ? (
             <div className="space-y-3">
               {topPosts.map((post, index) => (

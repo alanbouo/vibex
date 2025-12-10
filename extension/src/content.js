@@ -249,7 +249,11 @@ async function collectAllPosts(type = 'posts') {
   let lastScrollHeight = 0;
   let stuckCount = 0;
   
-  updateCollectorStatus(`Collecting ${type}... (0 collected)`);
+  // Get last collection timestamp to only collect fresh data
+  const lastUpdated = await getLastCollectionTime(type);
+  const cutoffDate = lastUpdated || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago if no previous collection
+  
+  updateCollectorStatus(`Collecting fresh ${type}... (0 collected)`);
   
   while (isCollecting) {
     const tweets = scrapeTweets();
@@ -257,9 +261,13 @@ async function collectAllPosts(type = 'posts') {
     
     tweets.forEach(tweet => {
       if (tweet.id && !seenIds.has(tweet.id)) {
-        seenIds.add(tweet.id);
-        collection.push(tweet);
-        newCount++;
+        // Only collect posts newer than the cutoff date
+        const tweetDate = new Date(tweet.timestamp);
+        if (!isNaN(tweetDate.getTime()) && tweetDate > cutoffDate) {
+          seenIds.add(tweet.id);
+          collection.push(tweet);
+          newCount++;
+        }
       }
     });
     
@@ -280,7 +288,7 @@ async function collectAllPosts(type = 'posts') {
       lastScrollHeight = currentScrollHeight;
     }
     
-    updateCollectorStatus(`Collecting ${type}... (${collection.length} collected)`);
+    updateCollectorStatus(`Collecting fresh ${type}... (${collection.length} collected)`);
     
     // Stop only if we're truly at the end:
     // - No new posts for 10+ scrolls AND page height hasn't changed for 5+ scrolls
@@ -296,13 +304,13 @@ async function collectAllPosts(type = 'posts') {
     
     // Every 50 items, do a longer pause to let X catch up
     if (collection.length % 50 === 0 && collection.length > 0) {
-      updateCollectorStatus(`Collecting ${type}... (${collection.length} collected) - pausing...`);
+      updateCollectorStatus(`Collecting fresh ${type}... (${collection.length} collected) - pausing...`);
       await sleep(1000);
     }
   }
   
   isCollecting = false;
-  updateCollectorStatus(`Done! ${collection.length} ${type} collected`);
+  updateCollectorStatus(`Done! ${collection.length} fresh ${type} collected`);
   
   // Save to storage
   saveCollectedData(type, collection);
@@ -350,6 +358,16 @@ function loadCollectedData(type) {
   });
 }
 
+function getLastCollectionTime(type) {
+  return new Promise((resolve) => {
+    const key = type === 'likes' ? 'vibex_likes_updated' : 'vibex_posts_updated';
+    chrome.storage.local.get([key], (result) => {
+      const timestamp = result[key];
+      resolve(timestamp ? new Date(timestamp) : null);
+    });
+  });
+}
+
 // ==========================================
 // UI COMPONENTS
 // ==========================================
@@ -372,10 +390,10 @@ function addCollectorUI() {
       <button class="vibex-close" id="vibex-collector-close">&times;</button>
     </div>
     <div class="vibex-collector-body">
-      <p class="vibex-collector-status" id="vibex-status">Ready to collect ${isLikesPage ? 'likes' : 'posts'}</p>
+      <p class="vibex-collector-status" id="vibex-status">Ready to collect fresh ${isLikesPage ? 'likes' : 'posts'}</p>
       <div class="vibex-collector-actions">
         <button class="vibex-btn vibex-btn-primary" id="vibex-collect-btn">
-          ${isLikesPage ? '❤️ Collect Likes' : '📝 Collect Posts'}
+          ${isLikesPage ? '❤️ Collect Fresh Likes' : '📝 Collect Fresh Posts'}
         </button>
         <button class="vibex-btn vibex-btn-secondary" id="vibex-export-btn">
           📥 Export JSON
@@ -435,10 +453,10 @@ function toggleVibexMenu() {
   menu.className = 'vibex-menu';
   menu.innerHTML = `
     <button class="vibex-menu-item" id="vibex-menu-collect">
-      📝 Collect Posts
+      📝 Collect Fresh Posts
     </button>
     <button class="vibex-menu-item" id="vibex-menu-likes">
-      ❤️ Collect Likes
+      ❤️ Collect Fresh Likes
     </button>
     <button class="vibex-menu-item" id="vibex-menu-writer">
       ✍️ AI Writer
